@@ -13,9 +13,18 @@ import type {
 
 /** Typed wrappers around the Rust contract commands. */
 
-/** Saves a new contract; `captureId` (the form's unsaved screenshot) is linked in the same transaction. */
-export function createContract(input: NewContractInput, captureId: number | null = null): Promise<ContractDetail> {
-  return call<ContractDetail>("create_contract", { input, captureId });
+/**
+ * Saves a new contract; `captureId` (the form's unsaved screenshot) is linked in the same
+ * transaction. `fromOcr`: the form was filled from that screenshot (source "ocr").
+ */
+export function createContract(
+  input: NewContractInput,
+  captureId: number | null = null,
+  fromOcr = false,
+  gameMissionId: string | null = null,
+  fromGameLog = false,
+): Promise<ContractDetail> {
+  return call<ContractDetail>("create_contract", { input, captureId, fromOcr, gameMissionId, fromGameLog });
 }
 
 export function listActiveContracts(): Promise<ContractDetail[]> {

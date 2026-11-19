@@ -7,7 +7,7 @@ import {
   captureScreenshot,
   discardCapture,
   getSettings,
-  recognizeCapture,
+  readContractFromCapture,
 } from "./api";
 import {
   canCapture,
@@ -41,7 +41,8 @@ export interface ContractCapture {
  * - Closing cancels a pending countdown and a running OCR; a capture already running
  *   finishes and is deleted. Closing without saving deletes the unsaved capture.
  */
-export function useContractCapture(mode: "add" | "edit"): ContractCapture {
+export function useContractCapture(mode: "add" | "edit", options: { force?: boolean } = {}): ContractCapture {
+  const force = options.force ?? false;
   const [model, dispatch] = useReducer(reduceCapture, initialCaptureModel);
   const closedRef = useRef(false);
   const savedRef = useRef(false);
@@ -60,9 +61,9 @@ export function useContractCapture(mode: "add" | "edit"): ContractCapture {
     if (closedRef.current || readingRef.current === captureId) return;
     readingRef.current = captureId;
     dispatch({ type: "ocrStart", captureId });
-    recognizeCapture(captureId)
-      .then((result) => {
-        if (!closedRef.current) dispatch({ type: "ocrSucceeded", captureId, result });
+    readContractFromCapture(captureId)
+      .then(({ ocr, parsed }) => {
+        if (!closedRef.current) dispatch({ type: "ocrSucceeded", captureId, result: ocr, parsed });
       })
       .catch((thrown: unknown) => {
         if (closedRef.current) return;
@@ -115,7 +116,8 @@ export function useContractCapture(mode: "add" | "edit"): ContractCapture {
     getSettings()
       .then((settings) => {
         if (cancelled) return;
-        const auto = shouldAutoCapture(mode, settings.capture_on_add_contract);
+        // A Game.log accept or the shortcut captures even when the setting is off.
+        const auto = shouldAutoCapture(mode, settings.capture_on_add_contract || force);
         dispatch({ type: "configured", auto, delayMs: settings.capture_delay_ms });
         if (!auto) return;
         const due = Date.now() + settings.capture_delay_ms;
@@ -144,7 +146,7 @@ export function useContractCapture(mode: "add" | "edit"): ContractCapture {
       captureIdRef.current = null;
       if (unsaved !== null) void discardCapture(unsaved).catch(() => undefined);
     };
-  }, [mode, capture]);
+  }, [mode, capture, force]);
 
   return {
     model,
@@ -160,11 +162,14 @@ export function useContractCapture(mode: "add" | "edit"): ContractCapture {
 }
 
 /** Collapsed screenshot section at the bottom of the Add Contract form. */
-export function CapturePreview({ flow }: { flow: ContractCapture }) {
+export function CapturePreview({ flow, prefix }: { flow: ContractCapture; prefix?: string }) {
   const [open, setOpen] = useState(false);
   const bodyId = useId();
   const { model } = flow;
-  const status = captureStatus(model);
+  const base = captureStatus(model);
+  // "Contract accepted in game · capturing in 1.0 s…" while the automatic capture runs.
+  const early = model.phase === "loading" || model.phase === "waiting" || model.phase === "capturing";
+  const status = prefix && early ? { ...base, text: `${prefix} · ${base.text.charAt(0).toLowerCase()}${base.text.slice(1)}` } : base;
   const counting = model.phase === "loading" || model.phase === "waiting" || model.phase === "capturing";
   const ocrError = model.ocr.status === "error";
   const toneClass = status.tone === "error" ? "text-danger" : status.tone === "warning" ? "text-accent" : "text-dim";
@@ -250,11 +255,11 @@ function HeaderButton({
 
 const REGION_LABEL = { title: "Title", reward: "Reward", objectives: "Objectives" } as const;
 
-/** Temporary check view (Task 09 replaces it with form filling): raw lines and confidences. */
+/** Troubleshooting view (collapsed): each region's raw lines and confidences. */
 function RecognisedText({ regions }: { regions: OcrRegion[] }) {
   return (
     <details className="rounded-sm border border-line bg-surface">
-      <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-muted hover:text-fg">Recognised text</summary>
+      <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-muted hover:text-fg">Show recognised text</summary>
       <div className="space-y-3 border-t border-line px-3 py-2">
         {regions.map((region) => (
           <div key={region.kind}>

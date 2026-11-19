@@ -18,6 +18,7 @@ use crate::contracts::{
 };
 use crate::database::models::ContractSource;
 use crate::database::{DatabaseError, DatabaseState};
+use crate::gamelog::service::GameLogState;
 use crate::ocr::{service as ocr_service, OcrError, OcrResult};
 use crate::reference::{self, ReferenceCommodity, ReferenceLocation};
 use crate::settings::{self, AppSettings, CaptureSource, ContractGrouping, SettingsError};
@@ -166,26 +167,68 @@ async fn run_blocking<T: Send + 'static>(
         })?
 }
 
-/// Validates and saves a manually entered contract. `capture_id` is the form's unsaved
-/// screenshot, linked to the new contract in the same transaction.
+/// Validates and saves a new contract.
+/// - `capture_id`: the form's unsaved screenshot, linked in the same transaction.
+/// - `from_ocr`: the form was filled from that screenshot (source `ocr`, even if edited).
+/// - `game_mission_id`: the in-game MissionId (Game.log); refused if a contract already has it.
+/// - `from_game_log`: the form was opened automatically by a Game.log accept: source
+///   `auto_capture`, and the capture's method `auto_capture`.
 #[tauri::command]
 pub async fn create_contract(
     app: AppHandle,
     input: NewContractInput,
     capture_id: Option<i64>,
+    from_ocr: Option<bool>,
+    game_mission_id: Option<String>,
+    from_game_log: Option<bool>,
 ) -> Result<ContractDetail, CommandError> {
+    let game_mission_id = game_mission_id
+        .map(|m| m.trim().to_ascii_lowercase())
+        .filter(|m| !m.is_empty());
+    if let Some(mission) = &game_mission_id {
+        if !crate::gamelog::patterns::is_mission_id(mission) {
+            return Err(validation(
+                "gameMissionId",
+                "This is not an in-game mission id.",
+            ));
+        }
+    }
+    let from_game_log = from_game_log == Some(true) && game_mission_id.is_some();
+    let source = if from_game_log {
+        ContractSource::AutoCapture
+    } else if from_ocr == Some(true) && capture_id.is_some() {
+        ContractSource::Ocr
+    } else {
+        ContractSource::Manual
+    };
+    let links = repository::SaveLinks {
+        capture_id,
+        game_mission_id: game_mission_id.clone(),
+        auto_capture: from_game_log && capture_id.is_some(),
+    };
     run_blocking(move || {
         let contract =
             validate_new_contract(&input).map_err(|issues| CommandError::Validation { issues })?;
         let state = app.state::<DatabaseState>();
         let db = state.wait_ready(READY_TIMEOUT)?;
         let mut conn = db.connection()?;
-        Ok(repository::create_contract_with_capture(
+        if let Some(mission) = &game_mission_id {
+            if let Some(existing) = repository::contract_for_mission(&conn, mission)? {
+                return Err(validation(
+                    "gameMissionId",
+                    &format!(
+                        "This in-game contract was already added as C{:02}.",
+                        existing
+                    ),
+                ));
+            }
+        }
+        Ok(repository::create_contract_linked(
             &mut conn,
             &contract,
             &AcceptanceTime::now_local(),
-            ContractSource::Manual,
-            capture_id,
+            source,
+            &links,
         )?)
     })
     .await
@@ -494,4 +537,154 @@ pub async fn recognize_capture(app: AppHandle, capture_id: i64) -> Result<OcrRes
 #[tauri::command]
 pub fn cancel_recognition(app: AppHandle, capture_id: i64) -> bool {
     app.state::<ocr_service::OcrState>().cancel(capture_id)
+}
+
+/// What `read_contract_from_capture` returns: the recognised text and the contract read from it.
+#[derive(Debug, Serialize)]
+pub struct ContractReading {
+    pub ocr: OcrResult,
+    pub parsed: crate::parser::ParsedContract,
+}
+
+/// Recognises a stored capture, then parses it into a contract for the form (never saved here).
+/// Names are resolved against the bundled lists plus the user's locations and used commodities.
+#[tauri::command]
+pub async fn read_contract_from_capture(
+    app: AppHandle,
+    capture_id: i64,
+) -> Result<ContractReading, CommandError> {
+    run_blocking(move || {
+        let ocr = ocr_service::recognize_capture(&app, capture_id)?;
+        let (user_locations, used_commodities) = {
+            let state = app.state::<DatabaseState>();
+            let db = state.wait_ready(READY_TIMEOUT)?;
+            let conn = db.connection()?;
+            let locations: Vec<String> = crate::locations::list_locations(&conn)?
+                .into_iter()
+                .map(|l| l.name)
+                .collect();
+            (locations, crate::locations::list_used_commodities(&conn)?)
+        };
+        let references = crate::parser::References::build(&user_locations, &used_commodities);
+        let parsed = crate::parser::parse_contract(&ocr, &references);
+        Ok(ContractReading { ocr, parsed })
+    })
+    .await
+}
+
+/* ------------------------------------------------------------ Game.log */
+
+/// The Game group of the Settings page.
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct GameLogSettingsInput {
+    pub monitoring: bool,
+    pub path: Option<String>,
+    pub auto_capture: bool,
+}
+
+/// Saves the Game.log settings and applies them to the watcher right away (no restart).
+/// The path must name a readable `Game.log` file. Turning monitoring off also turns automatic
+/// capture off (it requires monitoring).
+#[tauri::command]
+pub async fn update_game_log_settings(
+    app: AppHandle,
+    input: GameLogSettingsInput,
+) -> Result<AppSettings, CommandError> {
+    let path = input
+        .path
+        .map(|p| p.trim().to_string())
+        .filter(|p| !p.is_empty());
+    if let Some(p) = &path {
+        let named = std::path::Path::new(p)
+            .file_name()
+            .is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case("Game.log"));
+        if !named {
+            return Err(validation("gameLogPath", "Choose the file named Game.log."));
+        }
+        let readable =
+            std::fs::metadata(p).is_ok_and(|m| m.is_file()) && std::fs::File::open(p).is_ok();
+        if !readable {
+            return Err(validation("gameLogPath", "File not found or not readable."));
+        }
+    }
+    if input.monitoring && path.is_none() {
+        return Err(validation("gameLogPath", "Choose the Game.log file first."));
+    }
+    run_blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let db = state.wait_ready(READY_TIMEOUT)?;
+        let mut conn = db.connection()?;
+        let saved = settings::update(&mut conn, |s| {
+            s.game_log_monitoring_enabled = input.monitoring;
+            s.game_log_path = path;
+            s.auto_capture_on_accept = input.monitoring && input.auto_capture;
+        })
+        .map_err(|e| match e {
+            SettingsError::Invalid(invalid) => validation(invalid.field, &invalid.reason),
+            other => other.into(),
+        })?;
+        crate::gamelog::service::configure_from_settings(&app.state::<GameLogState>(), &saved);
+        Ok(saved)
+    })
+    .await
+}
+
+/// "Watching", "File not found", "Off" (or unreadable) for the status line.
+#[tauri::command]
+pub fn get_game_log_status(app: AppHandle) -> crate::gamelog::WatchStatus {
+    app.state::<GameLogState>().status()
+}
+
+/// Proposes `<channel>\\Game.log` from the running `<channel>\\Bin64\\StarCitizen.exe`
+/// (e.g. the LIVE folder).
+#[tauri::command]
+pub async fn detect_game_log_path() -> Result<String, CommandError> {
+    run_blocking(|| {
+        #[cfg(windows)]
+        let exe = crate::capture::native::star_citizen_exe_path();
+        #[cfg(not(windows))]
+        let exe: Option<std::path::PathBuf> = None;
+        let exe = exe.ok_or_else(|| {
+            validation(
+                "gameLogPath",
+                "Start Star Citizen first, then press Detect.",
+            )
+        })?;
+        let bin = exe.parent();
+        let channel = bin.and_then(|b| {
+            if b.file_name()
+                .is_some_and(|n| n.eq_ignore_ascii_case("Bin64"))
+            {
+                b.parent()
+            } else {
+                Some(b)
+            }
+        });
+        channel
+            .map(|c| c.join("Game.log").to_string_lossy().into_owned())
+            .ok_or_else(|| validation("gameLogPath", "Could not work out the game folder."))
+    })
+    .await
+}
+
+/// Saves the capture shortcut (`None` clears it). Rules: `settings::models::validate_shortcut`.
+#[tauri::command]
+pub async fn update_capture_shortcut(
+    app: AppHandle,
+    shortcut: Option<String>,
+) -> Result<AppSettings, CommandError> {
+    let shortcut = shortcut
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    run_blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let db = state.wait_ready(READY_TIMEOUT)?;
+        let mut conn = db.connection()?;
+        settings::update(&mut conn, |s| s.capture_shortcut = shortcut).map_err(|e| match e {
+            SettingsError::Invalid(invalid) => validation(invalid.field, &invalid.reason),
+            other => other.into(),
+        })
+    })
+    .await
 }

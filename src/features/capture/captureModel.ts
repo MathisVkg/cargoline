@@ -1,6 +1,6 @@
 // Pure state machine of the Add Contract screenshot preview (no React, no IPC).
 import type { CaptureFailure, OcrFailure } from "../contracts/types.ts";
-import type { CaptureInfo, OcrResult } from "./types.ts";
+import type { CaptureInfo, OcrResult, ParsedContract } from "./types.ts";
 
 export type CapturePhase =
   /** Settings not loaded yet (Add mode). */
@@ -28,10 +28,12 @@ export interface CaptureModel {
 export interface OcrView {
   status: "idle" | "reading" | "done" | "error";
   result: OcrResult | null;
+  /** The contract read from `result` (Task 09). */
+  parsed: ParsedContract | null;
   error: { reason: OcrFailure | "other"; message: string } | null;
 }
 
-const OCR_IDLE: OcrView = { status: "idle", result: null, error: null };
+const OCR_IDLE: OcrView = { status: "idle", result: null, parsed: null, error: null };
 
 export type CaptureEvent =
   | { type: "configured"; auto: boolean; delayMs: number }
@@ -42,7 +44,7 @@ export type CaptureEvent =
   | { type: "closed" }
   /** OCR events name their capture: a result for an older capture is ignored. */
   | { type: "ocrStart"; captureId: number }
-  | { type: "ocrSucceeded"; captureId: number; result: OcrResult }
+  | { type: "ocrSucceeded"; captureId: number; result: OcrResult; parsed?: ParsedContract | null }
   | { type: "ocrFailed"; captureId: number; reason: OcrFailure | "other"; message: string };
 
 export const initialCaptureModel: CaptureModel = {
@@ -86,13 +88,16 @@ export function reduceCapture(model: CaptureModel, event: CaptureEvent): Capture
       return { ...model, closed: true };
     case "ocrStart":
       if (model.phase !== "captured" || model.capture?.id !== event.captureId) return model;
-      return { ...model, ocr: { status: "reading", result: null, error: null } };
+      return { ...model, ocr: { status: "reading", result: null, parsed: null, error: null } };
     case "ocrSucceeded":
       if (model.capture?.id !== event.captureId || model.ocr.status !== "reading") return model;
-      return { ...model, ocr: { status: "done", result: event.result, error: null } };
+      return { ...model, ocr: { status: "done", result: event.result, parsed: event.parsed ?? null, error: null } };
     case "ocrFailed":
       if (model.capture?.id !== event.captureId || model.ocr.status !== "reading") return model;
-      return { ...model, ocr: { status: "error", result: null, error: { reason: event.reason, message: event.message } } };
+      return {
+        ...model,
+        ocr: { status: "error", result: null, parsed: null, error: { reason: event.reason, message: event.message } },
+      };
   }
 }
 

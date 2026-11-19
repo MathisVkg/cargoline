@@ -78,3 +78,48 @@ export interface OcrResult {
   regions: OcrRegion[];
   timings: { loadMs: number; anchorMs: number; regionsMs: number; totalMs: number };
 }
+
+/* ---------- Parsed contract (Task 09; the backend parser's output) ---------- */
+
+/** ok = read reliably; check = filled, to verify; missing = left empty. */
+export type ParseFlag = "ok" | "check" | "missing";
+
+export interface ParsedField<T> {
+  value: T | null;
+  flag: ParseFlag;
+  reason: string | null;
+}
+
+export type NameResolution = "exact" | "stripped" | "lagrange" | "folded" | "unresolved";
+
+export interface ParsedName extends ParsedField<string> {
+  resolution: NameResolution;
+  /** The cleaned OCR text it came from. */
+  read: string;
+}
+
+export interface ParsedStop {
+  location: ParsedName;
+  /** Whole SCU; null with flag "ok" means unknown (several pickups). */
+  scu: ParsedField<number>;
+}
+
+export interface ParsedRequirement {
+  commodity: ParsedName;
+  totalScu: ParsedField<number>;
+  pickups: ParsedStop[];
+  deliveries: ParsedStop[];
+}
+
+export interface ParsedContract {
+  screen: OcrButtonState;
+  title: ParsedField<string>;
+  reward: ParsedField<number>;
+  requirements: ParsedRequirement[];
+  problems: string[];
+}
+
+export interface ContractReading {
+  ocr: OcrResult;
+  parsed: ParsedContract;
+}

@@ -29,6 +29,49 @@ pub fn create_contract_with_capture(
     source: ContractSource,
     capture_id: Option<i64>,
 ) -> rusqlite::Result<ContractDetail> {
+    create_contract_linked(
+        conn,
+        contract,
+        accepted,
+        source,
+        &SaveLinks {
+            capture_id,
+            ..SaveLinks::default()
+        },
+    )
+}
+
+/// What a new contract is linked to besides its cargo (all optional).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct SaveLinks {
+    /// The form's unsaved screenshot, linked in the same transaction.
+    pub capture_id: Option<i64>,
+    /// The in-game MissionId (Game.log), stored in `contracts.game_mission_id`.
+    pub game_mission_id: Option<String>,
+    /// The capture was triggered by a Game.log accept: `capture_method = auto_capture`.
+    pub auto_capture: bool,
+}
+
+/// The contract (any status) that already carries this in-game MissionId.
+pub fn contract_for_mission(conn: &Connection, mission_id: &str) -> rusqlite::Result<Option<i64>> {
+    use rusqlite::OptionalExtension;
+    conn.query_row(
+        "SELECT id FROM contracts WHERE game_mission_id = ?1 ORDER BY id LIMIT 1",
+        [mission_id],
+        |r| r.get(0),
+    )
+    .optional()
+}
+
+/// Creates the contract and applies [`SaveLinks`] in one transaction.
+pub fn create_contract_linked(
+    conn: &mut Connection,
+    contract: &ValidContract,
+    accepted: &AcceptanceTime,
+    source: ContractSource,
+    links: &SaveLinks,
+) -> rusqlite::Result<ContractDetail> {
+    let capture_id = links.capture_id;
     // IMMEDIATE takes the write lock up front, so concurrent creations on the
     // same date cannot both decide to create the run.
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -50,7 +93,19 @@ pub fn create_contract_with_capture(
 
     insert_cargo(&tx, contract_id, &contract.requirements, accepted.utc_ms)?;
     if let Some(capture_id) = capture_id {
-        crate::capture::storage::link(&tx, capture_id, contract_id)?;
+        let linked = crate::capture::storage::link(&tx, capture_id, contract_id)?;
+        if linked && links.auto_capture {
+            tx.execute(
+                "UPDATE contract_captures SET capture_method = 'auto_capture' WHERE id = ?1",
+                [capture_id],
+            )?;
+        }
+    }
+    if let Some(mission_id) = &links.game_mission_id {
+        tx.execute(
+            "UPDATE contracts SET game_mission_id = ?2 WHERE id = ?1",
+            params![contract_id, mission_id],
+        )?;
     }
 
     let detail = load_contracts(&tx, Some(contract_id))?

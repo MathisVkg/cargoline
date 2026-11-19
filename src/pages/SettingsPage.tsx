@@ -5,19 +5,30 @@ import { DisabledButton, PageContainer, PageHeader, Tag } from "../components/ui
 import { getSettings, updateCaptureSettings } from "../features/capture/api";
 import type { CaptureSettingsInput, CaptureSource } from "../features/capture/types";
 import { describeError, toCommandError } from "../features/contracts/api";
+import {
+  announceSettingsChanged,
+  detectGameLogPath,
+  getGameLogStatus,
+  onGameLogStatus,
+  updateCaptureShortcut,
+  updateGameLogSettings,
+} from "../features/gamelog/api";
+import type { GameLogSettingsInput, WatchStatus } from "../features/gamelog/types";
+import { shortcutFromKey, shortcutProblem } from "../features/gamelog/shortcut";
 
 export function SettingsPage() {
+  const game = useGameLogSettings();
   return (
     <PageContainer>
       <div className="mx-auto max-w-3xl">
         <PageHeader
           index="04"
           title="Settings"
-          description="OCR Capture settings are saved on this computer. The other settings are placeholders in this version."
+          description="Game and OCR Capture settings are saved on this computer. Updates and the ship catalog are placeholders in this version."
         />
         <div className="flex flex-col gap-6">
-          <GameSection />
-          <OcrSection />
+          <GameSection game={game} />
+          <OcrSection game={game} />
           <UpdatesSection />
           <AboutSection />
         </div>
@@ -26,19 +37,217 @@ export function SettingsPage() {
   );
 }
 
-function GameSection() {
+type GameLogSettings = ReturnType<typeof useGameLogSettings>;
+
+/** The Game group's stored values, the watcher status, and saving (all or nothing). */
+function useGameLogSettings() {
+  const [value, setValue] = useState<GameLogSettingsInput | null>(null);
+  const [pathText, setPathText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<WatchStatus>({ state: "off" });
+
+  useEffect(() => {
+    let cancelled = false;
+    let unlisten: (() => void) | null = null;
+    getSettings()
+      .then((s) => {
+        if (cancelled) return;
+        setValue({ monitoring: s.game_log_monitoring_enabled, path: s.game_log_path, autoCapture: s.auto_capture_on_accept });
+        setPathText(s.game_log_path ?? "");
+      })
+      .catch((e) => !cancelled && setError(describeError(toCommandError(e))));
+    getGameLogStatus()
+      .then((st) => !cancelled && setStatus(st))
+      .catch(() => undefined);
+    onGameLogStatus((st) => setStatus(st))
+      .then((fn) => (cancelled ? fn() : (unlisten = fn)))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, []);
+
+  const save = (next: GameLogSettingsInput) => {
+    updateGameLogSettings(next)
+      .then((s) => {
+        setValue({ monitoring: s.game_log_monitoring_enabled, path: s.game_log_path, autoCapture: s.auto_capture_on_accept });
+        setPathText(s.game_log_path ?? "");
+        setError(null);
+        announceSettingsChanged();
+        return getGameLogStatus().then(setStatus);
+      })
+      .catch((e) => {
+        const failure = toCommandError(e);
+        setError(failure.kind === "validation" ? failure.issues.map((i) => i.message).join(" ") : describeError(failure));
+      });
+  };
+
+  return { value, pathText, setPathText, error, setError, status, save };
+}
+
+function statusText(status: WatchStatus): { text: string; tone: string } {
+  switch (status.state) {
+    case "watching":
+      return { text: "Watching", tone: "text-pickup" };
+    case "fileNotFound":
+      return { text: "File not found", tone: "text-accent" };
+    case "unreadable":
+      return { text: `Can't read the file (${status.reason})`, tone: "text-danger" };
+    case "off":
+      return { text: "Off", tone: "text-dim" };
+  }
+}
+
+function GameSection({ game }: { game: GameLogSettings }) {
+  const pathId = useId();
+  const { value, pathText, setPathText, error, setError, status, save } = game;
+  const ready = value !== null;
+  const current = value ?? { monitoring: false, path: null, autoCapture: false };
+  const savePath = (path: string) => {
+    const trimmed = path.trim();
+    if ((trimmed || null) === current.path) return;
+    save({ ...current, path: trimmed || null, monitoring: trimmed ? current.monitoring : false });
+  };
+  const detect = () =>
+    detectGameLogPath()
+      .then((path) => {
+        setPathText(path);
+        save({ ...current, path });
+      })
+      .catch((e) => {
+        const failure = toCommandError(e);
+        setError(failure.kind === "validation" ? failure.issues.map((i) => i.message).join(" ") : describeError(failure));
+      });
+  const shown = statusText(status);
   return (
     <SettingsSection index="01" title="Game">
-      <Row label="Game.log monitoring" hint="Optional. Never required for managing contracts.">
-        <Switch label="Game.log monitoring" />
+      {error && (
+        <p role="alert" className="px-4 py-2 text-sm break-words text-danger">
+          {error}
+        </p>
+      )}
+      <Row label="Game.log monitoring" hint="Optional. Reads new lines only; never required for managing contracts.">
+        <Switch
+          label="Game.log monitoring"
+          checked={current.monitoring}
+          disabled={!ready}
+          onChange={(on) => save({ ...current, path: pathText.trim() || current.path, monitoring: on })}
+        />
       </Row>
-      <Row label="Game.log file path">
-        <DisabledText label="Game.log file path" placeholder="Not configured" />
+      <Row label="Game.log file path" hint="Usually …\StarCitizen\LIVE\Game.log. Detect reads it from the running game.">
+        <div className="flex w-full flex-col gap-1 sm:w-80">
+          <div className="flex gap-2">
+            <input
+              id={pathId}
+              type="text"
+              value={pathText}
+              disabled={!ready}
+              onChange={(e) => setPathText(e.target.value)}
+              onBlur={(e) => savePath(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && savePath(e.currentTarget.value)}
+              aria-label="Game.log file path"
+              placeholder="Not configured"
+              spellCheck={false}
+              className="h-9 w-full min-w-0 rounded-sm border border-line bg-raised px-3 text-sm text-fg placeholder:text-placeholder disabled:cursor-not-allowed"
+            />
+            <button
+              type="button"
+              onClick={detect}
+              disabled={!ready}
+              className="h-9 shrink-0 rounded-sm border border-line px-3 text-sm font-medium text-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-50"
+            >
+              Detect
+            </button>
+          </div>
+          <p className={`text-xs ${shown.tone}`} role="status" aria-live="polite">
+            {shown.text}
+          </p>
+        </div>
       </Row>
       <Row label="Ship catalog" hint="Community-sourced, bundled offline.">
         <span className="text-sm text-dim">Not bundled yet · 0 ships</span>
       </Row>
     </SettingsSection>
+  );
+}
+
+/** Click, then press a combination (Escape cancels). Saved at once; Clear removes it. */
+function ShortcutRecorder() {
+  const [saved, setSaved] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [held, setHeld] = useState<string>("");
+  const [problem, setProblem] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getSettings()
+      .then((s) => !cancelled && setSaved(s.capture_shortcut))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const store = (shortcut: string | null) =>
+    updateCaptureShortcut(shortcut)
+      .then((s) => {
+        setSaved(s.capture_shortcut);
+        setProblem(null);
+        announceSettingsChanged();
+      })
+      .catch((e) => {
+        const failure = toCommandError(e);
+        setProblem(failure.kind === "validation" ? failure.issues.map((i) => i.message).join(" ") : describeError(failure));
+      });
+  return (
+    <div className="flex w-full flex-col gap-1 sm:w-64">
+      <div className="flex gap-2">
+        <button
+          type="button"
+          aria-label="Capture shortcut"
+          aria-describedby={problem ? "shortcut-problem" : undefined}
+          onClick={() => {
+            setRecording(true);
+            setHeld("");
+            setProblem(null);
+          }}
+          onBlur={() => setRecording(false)}
+          onKeyDown={(e) => {
+            if (!recording) return;
+            e.preventDefault();
+            e.stopPropagation(); // never triggers the current shortcut while recording
+            if (e.key === "Escape") return setRecording(false);
+            const combo = shortcutFromKey(e);
+            if (!combo) {
+              setHeld([e.ctrlKey && "Ctrl", e.altKey && "Alt", e.shiftKey && "Shift"].filter(Boolean).join("+"));
+              return;
+            }
+            const reason = shortcutProblem(combo);
+            setRecording(false);
+            if (reason) setProblem(`${combo}: ${reason}`);
+            else void store(combo);
+          }}
+          className={[
+            "h-9 min-w-0 flex-1 rounded-sm border bg-raised px-3 text-left font-mono text-sm",
+            recording ? "border-accent text-accent" : "border-line text-fg hover:border-line-strong",
+          ].join(" ")}
+        >
+          {recording ? held || "Press a combination…" : (saved ?? <span className="font-sans text-placeholder">Not configured</span>)}
+        </button>
+        <button
+          type="button"
+          onClick={() => void store(null)}
+          disabled={!saved}
+          className="h-9 shrink-0 rounded-sm border border-line px-3 text-sm font-medium text-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-40"
+        >
+          Clear
+        </button>
+      </div>
+      {problem && (
+        <p id="shortcut-problem" className="text-xs break-words text-danger">
+          {problem}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -91,7 +300,7 @@ function useCaptureSettings() {
   return { value, error, change };
 }
 
-function OcrSection() {
+function OcrSection({ game }: { game: GameLogSettings }) {
   const delayId = useId();
   const { value, error, change } = useCaptureSettings();
   const ready = value !== null;
@@ -143,11 +352,26 @@ function OcrSection() {
           </span>
         </div>
       </Row>
-      <Row label="Capture shortcut" hint="Works while Cargo Line is focused. Not available yet.">
-        <DisabledText label="Capture shortcut" placeholder="Not configured" />
+      <Row
+        label="Capture shortcut"
+        hint="Only while Cargo Line is focused: opens Add Contract with a capture, or recaptures in an open form."
+      >
+        <ShortcutRecorder />
       </Row>
-      <Row label="Automatic capture on accept" hint="Uses Game.log events. Not available yet.">
-        <Switch label="Automatic capture on accept" />
+      <Row
+        label="Automatic capture on accept"
+        hint={
+          game.value?.monitoring
+            ? "When a hauling contract is accepted in game, Add Contract opens and captures."
+            : "Needs Game.log monitoring (Game group)."
+        }
+      >
+        <Switch
+          label="Automatic capture on accept"
+          checked={!!game.value?.autoCapture}
+          disabled={!game.value?.monitoring}
+          onChange={(on) => game.value && game.save({ ...game.value, autoCapture: on })}
+        />
       </Row>
     </SettingsSection>
   );
@@ -252,18 +476,6 @@ function Switch({
         }`}
       />
     </button>
-  );
-}
-
-function DisabledText({ label, placeholder }: { label: string; placeholder: string }) {
-  return (
-    <input
-      type="text"
-      disabled
-      aria-label={label}
-      placeholder={placeholder}
-      className="h-9 w-full min-w-0 rounded-sm border border-line bg-raised px-3 text-sm text-dim placeholder:text-dim disabled:cursor-not-allowed sm:w-64"
-    />
   );
 }
 

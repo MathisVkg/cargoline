@@ -13,6 +13,8 @@ interface CatalogComboboxProps {
   /** Noun used in "Add new …", e.g. "location" or "commodity". */
   noun: string;
   error?: string;
+  /** Amber "check" hint (shown when there is no error). */
+  hint?: string;
   placeholder?: string;
   icon?: LucideIcon;
   /** Tailwind text color class for the leading icon. */
@@ -43,10 +45,12 @@ export function CatalogCombobox({
   suggestions,
   noun,
   error,
+  hint,
   placeholder,
   icon: Icon,
   tone = "text-dim",
 }: CatalogComboboxProps) {
+  const shownHint = error ? undefined : hint;
   const id = useId();
   const listId = `${id}-list`;
   const errorId = `${id}-error`;
@@ -144,7 +148,7 @@ export function CatalogCombobox({
           aria-controls={listId}
           aria-activedescendant={open && active >= 0 ? `${id}-opt-${active}` : undefined}
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? errorId : undefined}
+          aria-describedby={error || shownHint ? errorId : undefined}
           value={value}
           placeholder={placeholder}
           autoComplete="off"
@@ -162,7 +166,7 @@ export function CatalogCombobox({
             "h-8 w-full min-w-0 rounded-sm border bg-raised pr-7 text-sm text-fg placeholder:text-placeholder",
             Icon ? "pl-7" : "pl-2",
             "transition-colors duration-150 focus-visible:outline-offset-0 disabled:opacity-60",
-            error ? "border-danger" : "border-line hover:border-line-strong",
+            error ? "border-danger" : shownHint ? "border-accent" : "border-line hover:border-line-strong",
           ].join(" ")}
         />
         {value !== "" && (
@@ -244,6 +248,11 @@ export function CatalogCombobox({
       {error && (
         <p id={errorId} className="text-xs break-words text-danger">
           {error}
+        </p>
+      )}
+      {shownHint && (
+        <p id={errorId} className="text-xs break-words text-accent">
+          {shownHint}
         </p>
       )}
     </div>

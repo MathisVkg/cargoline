@@ -72,6 +72,64 @@ impl Default for AppSettings {
     }
 }
 
+/// Combinations the app or the web view already uses (editing, reload, find, print, close).
+pub const RESERVED_SHORTCUTS: &[&str] = &[
+    "Ctrl+A",
+    "Ctrl+C",
+    "Ctrl+V",
+    "Ctrl+X",
+    "Ctrl+Z",
+    "Ctrl+Y",
+    "Ctrl+Shift+Z",
+    "Ctrl+R",
+    "Ctrl+Shift+R",
+    "Ctrl+F",
+    "Ctrl+P",
+    "Ctrl+W",
+    "Ctrl+S",
+    "Alt+F4",
+    "Ctrl+Shift+I",
+    "Ctrl+Shift+J",
+];
+
+/// `[Ctrl+][Alt+][Shift+]<Key>`, in that order. Key: `A`–`Z`, `0`–`9` or `F1`–`F12`.
+/// At least Ctrl or Alt (a plain key, or Shift + key, would be typing). Reserved combinations
+/// are refused.
+pub fn validate_shortcut(text: &str) -> Result<(), String> {
+    let parts: Vec<&str> = text.split('+').collect();
+    let (key, modifiers) = parts.split_last().ok_or("Press a key combination.")?;
+    let order = ["Ctrl", "Alt", "Shift"];
+    let mut last = None;
+    for m in modifiers {
+        let index = order
+            .iter()
+            .position(|o| o == m)
+            .ok_or_else(|| format!("Unknown modifier \"{m}\"."))?;
+        if last.is_some_and(|l| index <= l) {
+            return Err("Write modifiers once, in the order Ctrl+Alt+Shift.".into());
+        }
+        last = Some(index);
+    }
+    let valid_key = (key.len() == 1
+        && key
+            .chars()
+            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit()))
+        || key
+            .strip_prefix('F')
+            .and_then(|n| n.parse::<u8>().ok())
+            .is_some_and(|n| (1..=12).contains(&n));
+    if !valid_key {
+        return Err("Use a letter, a digit or F1–F12 with Ctrl or Alt.".into());
+    }
+    if !modifiers.iter().any(|m| *m == "Ctrl" || *m == "Alt") {
+        return Err("Add Ctrl or Alt: a single key would be typed into fields.".into());
+    }
+    if RESERVED_SHORTCUTS.contains(&text) {
+        return Err(format!("{text} is already used by the app."));
+    }
+    Ok(())
+}
+
 /// A setting value that failed validation.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 #[error("invalid setting `{field}`: {reason}")]
@@ -129,6 +187,18 @@ impl AppSettings {
         }
         if !self.capture_delay_ms.is_multiple_of(CAPTURE_DELAY_STEP_MS) {
             return Err(invalid("capture_delay_ms", "must be a multiple of 100 ms"));
+        }
+        if let Some(path) = &self.game_log_path {
+            let file = path.rsplit(['\\', '/']).next().unwrap_or(path);
+            if !file.eq_ignore_ascii_case("Game.log") {
+                return Err(invalid(
+                    "game_log_path",
+                    "must point to a file named Game.log",
+                ));
+            }
+        }
+        if let Some(shortcut) = &self.capture_shortcut {
+            validate_shortcut(shortcut).map_err(|reason| invalid("capture_shortcut", reason))?;
         }
         if self.auto_capture_on_accept && !self.game_log_monitoring_enabled {
             return Err(invalid(

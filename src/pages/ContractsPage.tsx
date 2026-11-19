@@ -16,6 +16,9 @@ import {
 import { EmptyState, PageContainer, PageHeader, Panel } from "../components/ui";
 import { ActionMenu } from "../features/contracts/ActionMenu";
 import { AddContractModal } from "../features/contracts/AddContractModal";
+import type { Dispatch } from "react";
+import { GameLogNotices } from "../features/gamelog/GameLogNotices";
+import type { FlowAction, FlowState } from "../features/gamelog/flow";
 import { ConfirmFinalizeDialog, type ConfirmOutcome } from "../features/contracts/ConfirmFinalizeDialog";
 import { ContractsSummary } from "../features/contracts/ContractsSummary";
 import { ContractView } from "../features/contracts/ContractView";
@@ -80,7 +83,7 @@ type ListState =
   | { status: "error"; error: CommandError }
   | { status: "ready"; contracts: ContractDetail[] };
 
-export function ContractsPage() {
+export function ContractsPage({ flow, dispatch }: { flow: FlowState; dispatch: Dispatch<FlowAction> }) {
   const [list, setList] = useState<ListState>({ status: "loading" });
   const [mode, setMode] = useState<ContractGrouping>("by_location");
   const [modeLoaded, setModeLoaded] = useState(false);
@@ -89,9 +92,15 @@ export function ContractsPage() {
     by_location: new Map(),
     by_contract: new Map(),
   });
-  const [adding, setAdding] = useState(false);
+  const adding = flow.modal.open && flow.modal.kind === "add";
   const [pending, setPending] = useState<Confirmation | null>(null);
   const [editing, setEditing] = useState<ContractDetail | null>(null);
+  const editOpen = editing !== null;
+  useEffect(() => {
+    if (editOpen) dispatch({ type: "editOpened" });
+    else if (flow.modal.kind === "edit") dispatch({ type: "closed" });
+    // Only the edit modal opening or closing matters here.
+  }, [editOpen]);
   const [notice, setNotice] = useState<Notice | null>(null);
 
   const refresh = useCallback(async () => {
@@ -236,7 +245,8 @@ export function ContractsPage() {
   };
 
   const handleSaved = (saved: ContractDetail) => {
-    setAdding(false);
+    dispatch({ type: "saved", missionId: flow.modal.event?.missionId ?? null });
+    dispatch({ type: "closed" }); // opens the next queued Game.log event, if any
     // Show the new contract immediately, then reload the authoritative list.
     setList((current) =>
       current.status === "ready" ? { status: "ready", contracts: [saved, ...current.contracts] } : current,
@@ -258,7 +268,7 @@ export function ContractsPage() {
         actions={
           <button
             type="button"
-            onClick={() => setAdding(true)}
+            onClick={() => dispatch({ type: "openAdd" })}
             className="inline-flex h-9 items-center gap-2 rounded-sm bg-accent px-3 text-sm font-semibold text-(color:--color-canvas) transition-[filter] duration-150 hover:brightness-110"
           >
             <Plus className="size-4 shrink-0" aria-hidden="true" />
@@ -360,6 +370,17 @@ export function ContractsPage() {
         </div>
       )}
 
+      <GameLogNotices
+        notices={flow.notices}
+        active={contracts}
+        onAdd={(noticeId) => dispatch({ type: "openFromNotice", noticeId })}
+        onFinalize={(noticeId, contractId, action) => {
+          dispatch({ type: "dismiss", noticeId });
+          requestFinalize(contractId, action);
+        }}
+        onDismiss={(noticeId) => dispatch({ type: "dismiss", noticeId })}
+      />
+
       {(list.status === "loading" || (list.status === "ready" && !modeLoaded)) && (
         <Panel>
           <div className="flex items-center justify-center gap-2 px-6 py-14 text-sm text-muted" role="status">
@@ -423,7 +444,20 @@ export function ContractsPage() {
         </p>
       )}
 
-      {adding && <AddContractModal onClose={() => setAdding(false)} onSaved={handleSaved} />}
+      {adding && (
+        <AddContractModal
+          key={`add:${flow.modal.session}`}
+          onClose={() => dispatch({ type: "closed" })}
+          onSaved={handleSaved}
+          activeContracts={contracts}
+          gameEvent={flow.modal.event}
+          fromGameLog={flow.modal.auto}
+          forceCapture={flow.modal.forceCapture}
+          recaptureSignal={flow.recapture}
+          queue={flow.queue}
+          onCaptureNow={(missionId) => dispatch({ type: "captureNow", missionId })}
+        />
+      )}
       {editing && (
         <AddContractModal
           key={`edit:${editing.id}`}

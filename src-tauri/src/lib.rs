@@ -7,8 +7,10 @@ pub mod capture;
 pub mod commands;
 pub mod contracts;
 pub mod database;
+pub mod gamelog;
 pub mod locations;
 pub mod ocr;
+pub mod parser;
 pub mod reference;
 pub mod settings;
 
@@ -22,6 +24,7 @@ pub fn run() {
         .manage(DatabaseState::default())
         .manage(capture::CaptureState::default())
         .manage(ocr::service::OcrState::default())
+        .manage(gamelog::service::GameLogState::default())
         .register_asynchronous_uri_scheme_protocol("capture", |ctx, request, responder| {
             let app = ctx.app_handle().clone();
             let path = request.uri().path().to_string();
@@ -32,6 +35,7 @@ pub fn run() {
         .setup(|app| {
             start_database(app.handle());
             capture::service::start_cleanup(app.handle());
+            gamelog::service::start(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -53,7 +57,12 @@ pub fn run() {
             commands::capture_screenshot,
             commands::discard_capture,
             commands::recognize_capture,
-            commands::cancel_recognition
+            commands::cancel_recognition,
+            commands::read_contract_from_capture,
+            commands::update_game_log_settings,
+            commands::get_game_log_status,
+            commands::detect_game_log_path,
+            commands::update_capture_shortcut
         ])
         .run(tauri::generate_context!())
         .expect("error while running Cargo Line");
@@ -75,7 +84,20 @@ fn start_database<R: Runtime>(app: &tauri::AppHandle<R>) {
                 })
                 .and_then(|dir| Database::open(&dir.join(DATABASE_FILE_NAME)));
             match &outcome {
-                Ok(db) => eprintln!("[cargo-line] database ready at {}", db.path().display()),
+                Ok(db) => {
+                    eprintln!("[cargo-line] database ready at {}", db.path().display());
+                    // Game.log monitoring starts only if it was switched on in the settings.
+                    if let Ok(saved) = db
+                        .connection()
+                        .map_err(|e| e.to_string())
+                        .and_then(|c| settings::load(&c).map_err(|e| e.to_string()))
+                    {
+                        gamelog::service::configure_from_settings(
+                            &app.state::<gamelog::service::GameLogState>(),
+                            &saved,
+                        );
+                    }
+                }
                 Err(e) => eprintln!("[cargo-line] database initialization failed: {e}"),
             }
             app.state::<DatabaseState>().set(outcome);

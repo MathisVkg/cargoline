@@ -18,6 +18,7 @@ import {
   type Suggestion,
 } from "./catalogSearch";
 import type { LocationEntry, ReferenceCommodity, ReferenceLocation } from "./types";
+import { flagKeys, type FieldFlags } from "../capture/prefill";
 
 interface ContractFormProps {
   draft: ContractDraft;
@@ -31,8 +32,13 @@ interface ContractFormProps {
   userLocations?: readonly LocationEntry[];
   usedCommodities?: readonly string[];
   disabled?: boolean;
+  /** Hints for fields read from a screenshot with a problem (amber; cleared by editing). */
+  flags?: FieldFlags;
+  /** Shown above the objectives (e.g. the "Apply to form" bar). */
+  notice?: ReactNode;
 }
 
+const NO_FLAGS: FieldFlags = new Map();
 const NONE: readonly never[] = [];
 
 /**
@@ -48,6 +54,8 @@ export function ContractForm({
   userLocations = NONE,
   usedCommodities = NONE,
   disabled = false,
+  flags = NO_FLAGS,
+  notice,
 }: ContractFormProps) {
   const headingId = useId();
   // Recompute suggestions only when a catalog or the typed names change.
@@ -78,6 +86,7 @@ export function ContractForm({
           value={draft.title}
           onChange={(title) => onChange({ ...draft, title })}
           error={issues.get("title")}
+          hint={flags.get(flagKeys.title)}
           placeholder="e.g. Small Cargo Haul"
           autoFocus
         />
@@ -86,10 +95,13 @@ export function ContractForm({
           value={draft.rewardAuec}
           onChange={(rewardAuec) => onChange({ ...draft, rewardAuec })}
           error={issues.get("rewardAuec")}
+          hint={flags.get(flagKeys.reward)}
           placeholder="e.g. 48250"
           inputMode="numeric"
         />
       </div>
+
+      {notice}
 
       <section aria-labelledby={headingId} className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -112,6 +124,7 @@ export function ContractForm({
               index={i}
               requirement={req}
               issues={issues}
+              flags={flags}
               locations={locationSuggestions}
               commodities={commoditySuggestions}
               canRemove={draft.requirements.length > 1}
@@ -129,6 +142,7 @@ interface RequirementEditorProps {
   index: number;
   requirement: RequirementDraft;
   issues: Map<string, string>;
+  flags: FieldFlags;
   locations: readonly Suggestion[];
   commodities: readonly Suggestion[];
   canRemove: boolean;
@@ -140,6 +154,7 @@ function RequirementEditor({
   index,
   requirement: req,
   issues,
+  flags,
   locations,
   commodities,
   canRemove,
@@ -163,6 +178,7 @@ function RequirementEditor({
           suggestions={commodities}
           noun="commodity"
           error={issues.get(`${path}.commodityName`)}
+          hint={flags.get(flagKeys.commodity(req.key))}
           placeholder="Search or add commodity"
           icon={Package}
         />
@@ -172,6 +188,7 @@ function RequirementEditor({
             value={req.quantityScu}
             onChange={(quantityScu) => onChange({ ...req, quantityScu })}
             error={issues.get(`${path}.quantityScu`)}
+            hint={flags.get(flagKeys.total(req.key))}
             placeholder="e.g. 12"
             inputMode="decimal"
           />
@@ -199,6 +216,7 @@ function RequirementEditor({
             path={`${path}.${kind}`}
             objectiveLabel={label}
             issues={issues}
+            flags={flags}
             suggestions={locations}
             onChange={(stops) => onChange({ ...req, [kind]: stops })}
           />
@@ -219,11 +237,12 @@ interface StopListProps {
   path: string;
   objectiveLabel: string;
   issues: Map<string, string>;
+  flags: FieldFlags;
   suggestions: readonly Suggestion[];
   onChange: (stops: StopDraft[]) => void;
 }
 
-function StopList({ kind, stops, path, objectiveLabel, issues, suggestions, onChange }: StopListProps) {
+function StopList({ kind, stops, path, objectiveLabel, issues, flags, suggestions, onChange }: StopListProps) {
   const meta = STOP_KIND[kind];
   const Icon = meta.icon;
   const update = (i: number, next: StopDraft) => onChange(stops.map((s, j) => (j === i ? next : s)));
@@ -251,6 +270,7 @@ function StopList({ kind, stops, path, objectiveLabel, issues, suggestions, onCh
                 noun="location"
                 icon={MapPin}
                 error={issues.get(`${path}.${i}.locationName`)}
+                hint={flags.get(flagKeys.location(stop.key))}
                 placeholder={`Search or add ${meta.noun} location`}
                 tone={meta.tone}
               />
@@ -262,6 +282,7 @@ function StopList({ kind, stops, path, objectiveLabel, issues, suggestions, onCh
                 value={stop.quantityScu}
                 onChange={(quantityScu) => update(i, { ...stop, quantityScu })}
                 error={issues.get(`${path}.${i}.quantityScu`)}
+                hint={flags.get(flagKeys.stopScu(stop.key))}
                 placeholder="SCU"
                 inputMode="decimal"
               />
@@ -286,6 +307,8 @@ interface TextFieldProps {
   value: string;
   onChange: (value: string) => void;
   error?: string;
+  /** Amber "check" hint (shown when there is no error). */
+  hint?: string;
   placeholder?: string;
   inputMode?: "text" | "numeric" | "decimal";
   optional?: boolean;
@@ -293,9 +316,10 @@ interface TextFieldProps {
   autoFocus?: boolean;
 }
 
-function TextField({ label, value, onChange, error, placeholder, inputMode, optional, hideLabel, autoFocus }: TextFieldProps) {
+function TextField({ label, value, onChange, error, hint, placeholder, inputMode, optional, hideLabel, autoFocus }: TextFieldProps) {
   const id = useId();
   const errorId = `${id}-error`;
+  const shownHint = error ? undefined : hint;
   return (
     <div className="flex min-w-0 flex-col gap-0.5">
       <label htmlFor={id} className={hideLabel ? "sr-only" : "text-[11px] font-medium text-muted"}>
@@ -314,11 +338,11 @@ function TextField({ label, value, onChange, error, placeholder, inputMode, opti
         autoComplete="off"
         spellCheck={false}
         aria-invalid={error ? true : undefined}
-        aria-describedby={error ? errorId : undefined}
+        aria-describedby={error || shownHint ? errorId : undefined}
         className={[
           "h-8 w-full min-w-0 rounded-sm border bg-raised px-2 text-sm text-fg placeholder:text-placeholder",
           "transition-colors duration-150 focus-visible:outline-offset-0 disabled:opacity-60",
-          error ? "border-danger" : "border-line hover:border-line-strong",
+          error ? "border-danger" : shownHint ? "border-accent" : "border-line hover:border-line-strong",
         ].join(" ")}
       />
       {error && (
@@ -326,7 +350,17 @@ function TextField({ label, value, onChange, error, placeholder, inputMode, opti
           {error}
         </p>
       )}
+      {shownHint && <FieldHint id={errorId} message={shownHint} />}
     </div>
+  );
+}
+
+/** Amber hint under a field read from a screenshot with a problem. */
+export function FieldHint({ id, message }: { id?: string; message: string }) {
+  return (
+    <p id={id} className="text-xs break-words text-accent">
+      {message}
+    </p>
   );
 }
 

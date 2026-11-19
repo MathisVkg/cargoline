@@ -1,6 +1,6 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { call } from "../contracts/api";
-import type { AppSettings, CaptureInfo, CaptureSettingsInput, OcrResult } from "./types";
+import type { AppSettings, CaptureInfo, CaptureSettingsInput, ContractReading, OcrResult } from "./types";
 
 export function getSettings(): Promise<AppSettings> {
   return call<AppSettings>("get_settings");
@@ -34,4 +34,9 @@ export function recognizeCapture(captureId: number): Promise<OcrResult> {
 /** Cancels a running recognition (form closed, or a recapture started). */
 export function cancelRecognition(captureId: number): Promise<boolean> {
   return call<boolean>("cancel_recognition", { captureId });
+}
+
+/** Recognises a stored capture and parses it into a contract for the form (nothing is saved). */
+export function readContractFromCapture(captureId: number): Promise<ContractReading> {
+  return call<ContractReading>("read_contract_from_capture", { captureId });
 }

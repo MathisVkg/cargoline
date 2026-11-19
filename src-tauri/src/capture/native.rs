@@ -89,11 +89,10 @@ fn wide_to_string(buf: &[u16]) -> String {
     String::from_utf16_lossy(&buf[..buf.iter().position(|&c| c == 0).unwrap_or(buf.len())])
 }
 
-fn exe_name(pid: u32) -> String {
+/// Full path of a process's executable (read-only query).
+fn image_path(pid: u32) -> Option<String> {
     unsafe {
-        let Ok(process) = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) else {
-            return String::new();
-        };
+        let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
         let mut buf = [0u16; 1024];
         let mut len = buf.len() as u32;
         let ok = QueryFullProcessImageNameW(
@@ -104,12 +103,35 @@ fn exe_name(pid: u32) -> String {
         )
         .is_ok();
         let _ = CloseHandle(process);
-        if !ok {
-            return String::new();
-        }
-        let full = String::from_utf16_lossy(&buf[..len as usize]);
-        full.rsplit('\\').next().unwrap_or_default().to_string()
+        ok.then(|| String::from_utf16_lossy(&buf[..len as usize]))
     }
+}
+
+fn exe_name(pid: u32) -> String {
+    image_path(pid)
+        .and_then(|full| full.rsplit('\\').next().map(str::to_string))
+        .unwrap_or_default()
+}
+
+/// The executable of the running Star Citizen game window, e.g.
+/// `…\StarCitizen\LIVE\Bin64\StarCitizen.exe` (Game.log detection). None if not running.
+pub fn star_citizen_exe_path() -> Option<std::path::PathBuf> {
+    let mut found = None;
+    for window in star_citizen_windows().ok()? {
+        if !window
+            .exe
+            .eq_ignore_ascii_case(super::select::STAR_CITIZEN_EXE)
+        {
+            continue;
+        }
+        let mut pid = 0u32;
+        unsafe { GetWindowThreadProcessId(hwnd(window.handle), Some(&mut pid)) };
+        if let Some(path) = image_path(pid) {
+            found = Some(std::path::PathBuf::from(path));
+            break;
+        }
+    }
+    found
 }
 
 unsafe extern "system" fn collect_window(hwnd: HWND, lparam: LPARAM) -> BOOL {
