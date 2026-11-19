@@ -1,6 +1,6 @@
 import { useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Plus, X, type LucideIcon } from "lucide-react";
-import { buildOptions, canonicalSpelling, moveActive, type CatalogOption, type Suggestion } from "./catalogSearch";
+import { buildOptions, moveActive, type CatalogOption, type Suggestion } from "./catalogSearch";
 
 interface CatalogComboboxProps {
   label: string;
@@ -8,7 +8,7 @@ interface CatalogComboboxProps {
   showLabel?: boolean;
   value: string;
   onChange: (value: string) => void;
-  /** Catalog suggestions (bundled + user + names typed elsewhere in the form). */
+  /** Suggestions (bundled list + user entries + names typed elsewhere in the form). */
   suggestions: readonly Suggestion[];
   /** Noun used in "Add new …", e.g. "location" or "commodity". */
   noun: string;
@@ -31,8 +31,7 @@ const LIST_MAX = 260;
 
 /**
  * Searchable "type or pick" field (ARIA combobox + listbox). Free text is
- * always kept; picking a suggestion, or leaving the field with text that
- * matches one apart from case/whitespace, applies the catalog spelling.
+ * always kept; picking a suggestion fills in its spelling.
  * The popup is fixed-positioned so the modal's scroll area cannot clip it,
  * and it stays inside the dialog subtree so it remains interactive.
  */
@@ -98,11 +97,6 @@ export function CatalogCombobox({
     onChange(option.kind === "existing" ? option.suggestion.name : option.name);
     close();
   };
-  const leave = () => {
-    close();
-    const canonical = canonicalSpelling(suggestions, value);
-    if (canonical !== value) onChange(canonical);
-  };
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     switch (event.key) {
@@ -117,7 +111,7 @@ export function CatalogCombobox({
         if (open) {
           event.preventDefault(); // never submit the form from an open list
           if (active >= 0 && options[active]) choose(options[active]);
-          else leave();
+          else close();
         }
         break;
       case "Escape":
@@ -162,7 +156,7 @@ export function CatalogCombobox({
           }}
           onFocus={openList}
           onClick={() => !open && openList()}
-          onBlur={leave}
+          onBlur={close}
           onKeyDown={onKeyDown}
           className={[
             "h-8 w-full min-w-0 rounded-sm border bg-raised pr-7 text-sm text-fg placeholder:text-dim",

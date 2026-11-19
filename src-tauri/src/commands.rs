@@ -8,13 +8,13 @@ use std::time::Duration;
 use serde::Serialize;
 use tauri::{AppHandle, Manager};
 
-use crate::catalog::{reference_catalog_info, CatalogEntry, CatalogTable, ReferenceCatalogInfo};
 use crate::contracts::validation::validate_new_contract;
 use crate::contracts::{
     repository, AcceptanceTime, ContractDetail, NewContractInput, ValidationIssue,
 };
 use crate::database::models::ContractSource;
 use crate::database::{DatabaseError, DatabaseState};
+use crate::reference::{self, ReferenceCommodity, ReferenceLocation};
 use crate::settings::{self, ContractGrouping, SettingsError};
 
 /// How long a command waits for startup database initialization.
@@ -135,43 +135,44 @@ pub async fn set_contract_grouping(
     .await
 }
 
-/// Active catalog locations (bundled + user), alphabetical. Retired entries
-/// are excluded. Filtering happens in the location pickers.
+/// The user's location catalog (names typed in saved contracts), alphabetical.
 #[tauri::command]
-pub async fn list_locations(app: AppHandle) -> Result<Vec<CatalogEntry>, CommandError> {
-    list_catalog(app, CatalogTable::Locations).await
-}
-
-/// Active catalog commodities (bundled + user), alphabetical. Retired
-/// entries are excluded.
-#[tauri::command]
-pub async fn list_commodities(app: AppHandle) -> Result<Vec<CatalogEntry>, CommandError> {
-    list_catalog(app, CatalogTable::Commodities).await
-}
-
-async fn list_catalog(
+pub async fn list_locations(
     app: AppHandle,
-    table: CatalogTable,
-) -> Result<Vec<CatalogEntry>, CommandError> {
+) -> Result<Vec<crate::locations::LocationEntry>, CommandError> {
     run_blocking(move || {
         let state = app.state::<DatabaseState>();
         let db = state.wait_ready(READY_TIMEOUT)?;
         let conn = db.connection()?;
-        Ok(crate::catalog::list_entries(&conn, table)?)
+        Ok(crate::locations::list_locations(&conn)?)
     })
     .await
 }
 
-/// Provenance of the bundled reference catalog, for Settings / About.
+/// Distinct commodity names already used in saved contracts.
 #[tauri::command]
-pub async fn get_reference_catalog_info(
-    app: AppHandle,
-) -> Result<ReferenceCatalogInfo, CommandError> {
+pub async fn list_used_commodities(app: AppHandle) -> Result<Vec<String>, CommandError> {
     run_blocking(move || {
         let state = app.state::<DatabaseState>();
         let db = state.wait_ready(READY_TIMEOUT)?;
         let conn = db.connection()?;
-        Ok(reference_catalog_info(&conn)?)
+        Ok(crate::locations::list_used_commodities(&conn)?)
     })
     .await
+}
+
+/// Bundled reference locations (static data, no database access).
+#[tauri::command]
+pub fn list_reference_locations() -> Result<Vec<ReferenceLocation>, CommandError> {
+    reference::locations()
+        .map(|list| list.items.clone())
+        .map_err(|message| CommandError::Internal { message })
+}
+
+/// Bundled reference commodities (static data, no database access).
+#[tauri::command]
+pub fn list_reference_commodities() -> Result<Vec<ReferenceCommodity>, CommandError> {
+    reference::commodities()
+        .map(|list| list.items.clone())
+        .map_err(|message| CommandError::Internal { message })
 }

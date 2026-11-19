@@ -36,9 +36,28 @@ fn seed_location_catalog(tx: &Transaction) -> HookResult {
         .map_err(HookError::RusqliteError)
 }
 
-/// Runs in the 0003 migration transaction after its SQL.
+/// Runs in the 0003 migration transaction after its SQL: seeds the
+/// `commodities` table with the distinct names already used by cargo
+/// requirements (oldest spelling wins). Migration 0003 is applied on existing
+/// installs and must stay unchanged; the app does not read these tables.
 fn seed_commodity_catalog(tx: &Transaction) -> HookResult {
-    crate::catalog::seed_commodities_from_requirements(tx, crate::database::now_utc_ms())
-        .map(|_| ())
-        .map_err(HookError::RusqliteError)
+    seed_commodities(tx, crate::database::now_utc_ms()).map_err(HookError::RusqliteError)
+}
+
+fn seed_commodities(conn: &Transaction, now_ms: i64) -> rusqlite::Result<()> {
+    let names: Vec<String> = conn
+        .prepare("SELECT commodity_name FROM cargo_requirements ORDER BY id")?
+        .query_map([], |r| r.get(0))?
+        .collect::<Result<_, _>>()?;
+    let mut insert = conn.prepare(
+        "INSERT INTO commodities (display_name, normalized_name, source, created_at) VALUES (?1, ?2, 'user', ?3)
+         ON CONFLICT (normalized_name) DO NOTHING",
+    )?;
+    for name in names {
+        let display = crate::locations::normalize_display(&name);
+        if !display.is_empty() {
+            insert.execute(rusqlite::params![display, display.to_lowercase(), now_ms])?;
+        }
+    }
+    Ok(())
 }

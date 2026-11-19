@@ -49,8 +49,6 @@ fixtures/
 # Automated test files stay local (project policy). Both suites still run locally.
 /tests/
 /src-tauri/tests/
-# Catalog importer download cache (raw API responses)
-tools/catalog-import/.cache/
 test-data/
 test-output/
 diagnostics/

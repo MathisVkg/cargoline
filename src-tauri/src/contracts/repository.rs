@@ -44,17 +44,9 @@ pub fn create_contract(
          VALUES (?1, ?2, ?3, ?4, ?5)",
     )?;
     for req in &contract.requirements {
-        // Reuse the catalog spelling, or add the new commodity as a user
-        // entry, in this same transaction (rolled back if the save fails).
-        let commodity_name = crate::catalog::resolve_or_insert(
-            &tx,
-            crate::catalog::CatalogTable::Commodities,
-            &req.commodity_name,
-            accepted.utc_ms,
-        )?;
         insert_requirement.execute(params![
             contract_id,
-            commodity_name,
+            req.commodity_name,
             req.quantity_scu_milli,
             req.max_box_size_scu_milli,
             accepted.utc_ms

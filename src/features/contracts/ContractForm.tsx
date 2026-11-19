@@ -9,22 +9,31 @@ import {
   type StopKind,
 } from "./draft";
 import { CatalogCombobox } from "./CatalogCombobox";
-import { commodityDetail, locationDetail, mergeSuggestions, type Suggestion } from "./catalogSearch";
-import type { CatalogEntry } from "./types";
+import {
+  fromNames,
+  fromReferenceCommodity,
+  fromReferenceLocation,
+  fromUserLocations,
+  mergeSuggestions,
+  type Suggestion,
+} from "./catalogSearch";
+import type { LocationEntry, ReferenceCommodity, ReferenceLocation } from "./types";
 
 interface ContractFormProps {
   draft: ContractDraft;
   onChange: (draft: ContractDraft) => void;
   /** Validation messages keyed by input path. */
   issues: Map<string, string>;
-  /** Catalog locations offered by the location pickers. */
-  locations?: readonly CatalogEntry[];
-  /** Catalog commodities offered by the commodity pickers. */
-  commodities?: readonly CatalogEntry[];
+  /** Bundled reference lists (suggestions; their spelling wins in the dropdown). */
+  referenceLocations?: readonly ReferenceLocation[];
+  referenceCommodities?: readonly ReferenceCommodity[];
+  /** The user's own entries: location catalog and commodities used in saved contracts. */
+  userLocations?: readonly LocationEntry[];
+  usedCommodities?: readonly string[];
   disabled?: boolean;
 }
 
-const NONE: readonly CatalogEntry[] = [];
+const NONE: readonly never[] = [];
 
 /**
  * Controlled contract editor. Knows nothing about how the draft was
@@ -34,8 +43,10 @@ export function ContractForm({
   draft,
   onChange,
   issues,
-  locations = NONE,
-  commodities = NONE,
+  referenceLocations = NONE,
+  referenceCommodities = NONE,
+  userLocations = NONE,
+  usedCommodities = NONE,
   disabled = false,
 }: ContractFormProps) {
   const headingId = useId();
@@ -45,13 +56,15 @@ export function ContractForm({
     .map((s) => s.locationName)
     .join("\u0000");
   const commodityKey = draft.requirements.map((r) => r.commodityName).join("\u0000");
+  const bundledLocations = useMemo(() => referenceLocations.map(fromReferenceLocation), [referenceLocations]);
+  const bundledCommodities = useMemo(() => referenceCommodities.map(fromReferenceCommodity), [referenceCommodities]);
   const locationSuggestions = useMemo(
-    () => mergeSuggestions(locations, locationKey.split("\u0000"), locationDetail),
-    [locations, locationKey],
+    () => mergeSuggestions(bundledLocations, fromUserLocations(userLocations), fromNames(locationKey.split("\u0000"))),
+    [bundledLocations, userLocations, locationKey],
   );
   const commoditySuggestions = useMemo(
-    () => mergeSuggestions(commodities, commodityKey.split("\u0000"), commodityDetail),
-    [commodities, commodityKey],
+    () => mergeSuggestions(bundledCommodities, fromNames(usedCommodities), fromNames(commodityKey.split("\u0000"))),
+    [bundledCommodities, usedCommodities, commodityKey],
   );
 
   const setRequirement = (index: number, next: RequirementDraft) =>

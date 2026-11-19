@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import { ContractForm } from "./ContractForm";
-import { createContract, describeError, listCommodities, listLocations, toCommandError } from "./api";
+import {
+  createContract,
+  describeError,
+  listLocations,
+  listReferenceCommodities,
+  listReferenceLocations,
+  listUsedCommodities,
+  toCommandError,
+} from "./api";
 import { emptyDraft, isDraftEmpty, issuesByPath, toInput, validateDraft, type ContractDraft } from "./draft";
 import { formatScu, parseScuMilli } from "./scu";
-import type { CommandError, CatalogEntry, ContractDetail, ValidationIssue } from "./types";
+import type { CommandError, ContractDetail, LocationEntry, ReferenceCommodity, ReferenceLocation, ValidationIssue } from "./types";
 
 interface AddContractModalProps {
   onClose: () => void;
@@ -24,18 +32,21 @@ export function AddContractModal({ onClose, onSaved, initialDraft }: AddContract
   const [serverIssues, setServerIssues] = useState<ValidationIssue[]>([]);
   const [error, setError] = useState<CommandError | null>(null);
   const [saving, setSaving] = useState(false);
-  const [locations, setLocations] = useState<CatalogEntry[]>([]);
-  const [commodities, setCommodities] = useState<CatalogEntry[]>([]);
+  const [referenceLocations, setReferenceLocations] = useState<ReferenceLocation[]>([]);
+  const [referenceCommodities, setReferenceCommodities] = useState<ReferenceCommodity[]>([]);
+  const [userLocations, setUserLocations] = useState<LocationEntry[]>([]);
+  const [usedCommodities, setUsedCommodities] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-    // Suggestions only; typing a new location still works if this fails.
-    listLocations()
-      .then((entries) => !cancelled && setLocations(entries))
-      .catch(() => undefined);
-    listCommodities()
-      .then((entries) => !cancelled && setCommodities(entries))
-      .catch(() => undefined);
+    // Suggestions only: if any list fails to load, typing still works.
+    function load<T>(request: Promise<T>, apply: (value: T) => void) {
+      request.then((value) => !cancelled && apply(value)).catch(() => undefined);
+    }
+    load(listReferenceLocations(), setReferenceLocations);
+    load(listReferenceCommodities(), setReferenceCommodities);
+    load(listLocations(), setUserLocations);
+    load(listUsedCommodities(), setUsedCommodities);
     return () => {
       cancelled = true;
     };
@@ -132,7 +143,11 @@ export function AddContractModal({ onClose, onSaved, initialDraft }: AddContract
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3">
-          <ContractForm draft={draft} onChange={change} issues={issues} locations={locations} commodities={commodities} disabled={saving} />
+          <ContractForm draft={draft} onChange={change} issues={issues} referenceLocations={referenceLocations}
+            referenceCommodities={referenceCommodities}
+            userLocations={userLocations}
+            usedCommodities={usedCommodities}
+            disabled={saving} />
         </div>
 
         <footer className="shrink-0 border-t border-line bg-surface px-4 py-2.5">

@@ -1,9 +1,9 @@
 /**
- * Pure helpers for the searchable catalog pickers (locations, commodities).
- * No DOM; unit-tested. Filtering is client-side over the listed catalog.
+ * Pure helpers for the searchable "type or pick" fields (locations,
+ * commodities). No DOM; unit-tested. Filtering is client-side.
  */
 
-import type { CatalogEntry } from "./types.ts";
+import type { LocationEntry, ReferenceCommodity, ReferenceLocation } from "./types.ts";
 
 /** Trims and collapses inner whitespace (mirrors Rust `normalize_display`). */
 export function normalizeName(name: string): string {
@@ -20,36 +20,45 @@ export interface Suggestion {
   name: string;
   /** Small secondary text, e.g. "microTech · Stanton" or "Metal". */
   detail: string | null;
-  seenInHauling: boolean;
 }
 
 export type CatalogOption = { kind: "existing"; suggestion: Suggestion } | { kind: "create"; name: string };
 
 export const MAX_OPTIONS = 50;
 
-/** Secondary text for a location: "body · system" (whichever are known). */
-export const locationDetail = (e: CatalogEntry): string | null => [e.body, e.system].filter(Boolean).join(" · ") || null;
+/** Bundled location with "body · system" as secondary text when known. */
+export const fromReferenceLocation = (l: ReferenceLocation): Suggestion => ({
+  name: l.name,
+  detail: [l.body, l.system].filter(Boolean).join(" · ") || null,
+});
 
-/** Secondary text for a commodity: its kind/category. */
-export const commodityDetail = (e: CatalogEntry): string | null => e.kind ?? null;
+/** "ProcessedGoods" → "Processed Goods", "Raw_Minerals" → "Raw Minerals". */
+export const humanizeGroup = (group: string): string => group.replace(/_/g, " ").replace(/([a-z])([A-Z])/g, "$1 $2");
+
+/** Bundled commodity with its group as secondary text when known. */
+export const fromReferenceCommodity = (c: ReferenceCommodity): Suggestion => ({
+  name: c.name,
+  detail: c.group ? humanizeGroup(c.group) : null,
+});
+
+/** Plain names (user catalog, saved contracts, the current form). */
+export const fromNames = (names: readonly string[]): Suggestion[] =>
+  names.map((name) => ({ name: normalizeName(name), detail: null })).filter((s) => s.name !== "");
+
+export const fromUserLocations = (entries: readonly LocationEntry[]): Suggestion[] => fromNames(entries.map((e) => e.name));
 
 /**
- * Catalog entries plus names typed elsewhere in the current form,
- * de-duplicated by key (catalog spelling and details win).
+ * Merges suggestion lists, de-duplicated case- and whitespace-insensitively.
+ * Earlier lists win, so pass the bundled list first: its spelling and detail
+ * are shown. Stored data is never changed by this.
  */
-export function mergeSuggestions(
-  catalog: readonly CatalogEntry[],
-  formNames: readonly string[],
-  detail: (entry: CatalogEntry) => string | null,
-): Suggestion[] {
+export function mergeSuggestions(...lists: readonly (readonly Suggestion[])[]): Suggestion[] {
   const byKey = new Map<string, Suggestion>();
-  for (const entry of catalog) {
-    const key = nameKey(entry.name);
-    if (!byKey.has(key)) byKey.set(key, { name: entry.name, detail: detail(entry), seenInHauling: entry.seenInHauling });
-  }
-  for (const name of formNames) {
-    const key = nameKey(name);
-    if (key && !byKey.has(key)) byKey.set(key, { name: normalizeName(name), detail: null, seenInHauling: false });
+  for (const list of lists) {
+    for (const s of list) {
+      const key = nameKey(s.name);
+      if (key && !byKey.has(key)) byKey.set(key, s);
+    }
   }
   return [...byKey.values()];
 }
@@ -59,7 +68,8 @@ const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
  * Match tier for `query` against `name`, or null when it does not match:
- * 0 exact, 1 prefix, 2 word-start ("tress" → "Port Tressler"), 3 substring.
+ * 0 exact, 1 starts with the text, 2 a word starts with it
+ * ("tress" → "Port Tressler"), 3 contains it anywhere.
  */
 export function matchTier(name: string, query: string): 0 | 1 | 2 | 3 | null {
   const key = nameKey(name);
@@ -72,35 +82,22 @@ export function matchTier(name: string, query: string): 0 | 1 | 2 | 3 | null {
   return null;
 }
 
-/**
- * Ranked suggestions: by tier, then entries seen in hauling, then
- * alphabetical. At most `limit` results.
- */
+/** Ranked suggestions: by tier, then alphabetical. At most `limit` results. */
 export function rankSuggestions(suggestions: readonly Suggestion[], query: string, limit = MAX_OPTIONS): Suggestion[] {
   return suggestions
     .map((s) => ({ s, tier: matchTier(s.name, query) }))
     .filter((x): x is { s: Suggestion; tier: 0 | 1 | 2 | 3 } => x.tier !== null)
-    .sort((a, b) => a.tier - b.tier || Number(b.s.seenInHauling) - Number(a.s.seenInHauling) || alpha(a.s.name, b.s.name))
+    .sort((a, b) => a.tier - b.tier || alpha(a.s.name, b.s.name))
     .slice(0, limit)
     .map((x) => x.s);
 }
 
-/** Listbox options: ranked matches, plus "create" when the text is new. */
+/** Listbox options: ranked matches, plus "Add new …" when the text is new. */
 export function buildOptions(suggestions: readonly Suggestion[], query: string, limit = MAX_OPTIONS): CatalogOption[] {
   const typed = normalizeName(query);
   const ranked = rankSuggestions(suggestions, query, limit).map((suggestion): CatalogOption => ({ kind: "existing", suggestion }));
   const exact = typed !== "" && suggestions.some((s) => nameKey(s.name) === nameKey(typed));
   return typed !== "" && !exact ? [...ranked, { kind: "create", name: typed }] : ranked;
-}
-
-/**
- * The canonical spelling when `text` equals a suggestion apart from case or
- * whitespace; otherwise `text` unchanged (free text is always allowed).
- */
-export function canonicalSpelling(suggestions: readonly Suggestion[], text: string): string {
-  const key = nameKey(text);
-  if (!key) return text;
-  return suggestions.find((s) => nameKey(s.name) === key)?.name ?? text;
 }
 
 /** Arrow-key movement through `count` options, wrapping; -1 means none active. */

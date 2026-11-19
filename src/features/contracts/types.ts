@@ -87,34 +87,21 @@ export type CommandError =
   | { kind: "database"; message: string }
   | { kind: "internal"; message: string };
 
-/** Catalog entry (location or commodity) from list_locations / list_commodities. */
-export interface CatalogEntry {
+/** Entry of the user's location catalog (names typed in saved contracts). */
+export interface LocationEntry {
   id: number;
   name: string;
-  kind: string | null;
-  /** Parent planet or moon (locations only). */
-  body: string | null;
-  /** Star system (locations only). */
+}
+
+/** Bundled reference location (src-tauri/resources/catalog/locations.json). */
+export interface ReferenceLocation {
+  name: string;
   system: string | null;
-  source: "bundled" | "user";
-  seenInHauling: boolean;
+  body: string | null;
 }
 
-export interface CatalogCounts {
-  bundled: number;
-  user: number;
-  retired: number;
-}
-
-/** Provenance of the bundled reference catalog (get_reference_catalog_info). */
-export interface ReferenceCatalogInfo {
-  syncedVersion: string | null;
-  bundledVersion: string | null;
-  sourceName: string | null;
-  sourceUrl: string | null;
-  gameVersion: string | null;
-  fetchedOn: string | null;
-  attribution: string | null;
-  locations: CatalogCounts;
-  commodities: CatalogCounts;
+/** Bundled reference commodity (src-tauri/resources/catalog/commodities.json). */
+export interface ReferenceCommodity {
+  name: string;
+  group: string | null;
 }

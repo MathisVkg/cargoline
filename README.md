@@ -17,7 +17,7 @@ page, grouped by location or by contract. Everything else is still a placeholder
 | Bottom navigation: Contracts, Cargo, History, Settings | Implemented |
 | Contracts: manual Add Contract | Implemented |
 | Contracts: By Location / By Contract views (choice is remembered) | Implemented |
-| Contracts: searchable location picker backed by a local location catalog | Implemented |
+| Contracts: searchable location and commodity fields (bundled lists + your own entries) | Implemented |
 | Contracts: pickup/turn-in tracking, editing, completion, abandonment, OCR | Not implemented |
 | Cargo summary and visualisation | Not implemented. Layout placeholder only |
 | History, runs, statistics | Not implemented. Empty state only |
@@ -109,44 +109,30 @@ Automated tests live in `tests/frontend/` (Node's built-in `node:test`, no extra
 `src-tauri/tests/` (Rust). Project policy keeps test files local, so both folders are git-ignored;
 `npm test` runs both suites. Tests only ever use temporary databases.
 
-## Reference catalogs (locations and commodities)
+## Location catalog and bundled suggestion lists
 
-The Add Contract location and commodity fields are "type or pick" pickers. Suggestions come from two
-local catalog tables, `locations` (migration 0002) and `commodities` (migration 0003). The catalogs only
-speed up entry and keep spellings consistent; any value can still be typed and saved.
+The Add Contract location and commodity fields are "type or pick" fields: search a list, or type any
+value. Free text is always accepted, and validation and saving are unchanged.
 
-- **Bundled entries** come from an offline snapshot of community data,
-  `src-tauri/resources/catalog/reference-catalog.json`, compiled into the app. The app never calls the
-  network for catalog data.
-- **User entries** are names typed when saving a contract. They are added in the same transaction as the
-  contract, so cancelling or a failed save leaves no unused entries.
-- **Matching:** names are compared ignoring case and extra spaces. A typed name that matches an entry
-  apart from case or spacing uses the catalog spelling.
-- **Startup sync:** when the embedded snapshot's `catalog_version` differs from the one recorded in
-  `catalog_metadata`, the app applies the snapshot in one transaction. Rows are matched by source id,
-  then by name. A matching user entry becomes bundled. Bundled entries missing from a newer snapshot are
-  retired, never deleted, and retired entries are hidden from suggestions. If the sync fails, the
-  previous catalog is kept and contracts keep working.
-- **Contracts still store plain names.** There is no foreign key from contracts to catalog rows.
-
-### Refreshing the snapshot
-
-```bash
-node tools/catalog-import/import.mjs                       # current default LIVE build
-node tools/catalog-import/import.mjs --version <build>     # pin a specific build
-```
-
-The importer needs Node 18+ and has no dependencies. It caches raw responses in
-`tools/catalog-import/.cache/` (git-ignored) and throttles mission requests to one per second.
+- **User location catalog (`locations` table, migration 0002).** Location names typed in saved contracts.
+  Names are compared ignoring case and extra spaces, so "port  tressler" reuses "Port Tressler". New names
+  are added in the same transaction as the contract, so cancelling or a failed save leaves nothing behind.
+- **Bundled reference lists:** `src-tauri/resources/catalog/locations.json` and `commodities.json`. They
+  are static data, embedded at compile time, served by the Rust commands `list_reference_locations` and
+  `list_reference_commodities`, and never written to the database. They list the locations named in
+  hauling-mission text and the commodities used in hauling orders, for one pinned game build. Location
+  names keep the in-game mission spelling (e.g. "Covalex Distribution Center S4DC05").
+- **Dropdown merge:** bundled entries come first and their spelling wins in the dropdown. Then come the
+  user's catalog (locations) or the commodities already used in saved contracts, then names typed in the
+  current form. Duplicates are removed ignoring case and spacing.
+- **Search order:** names that start with the typed text, then names where a word starts with it, then
+  names that contain it. At most 50 options are shown.
+- **Migration 0003** (extra catalog columns, an unused `commodities` table, `catalog_metadata` keyed by
+  catalog) was applied on existing development installs during an earlier design. It stays in place,
+  unused, because applied migrations are never removed.
 
 ### Data source and attribution
 
-Commodity and location data comes from the [Star Citizen Wiki API](https://api.star-citizen.wiki),
-maintained by the Star Citizen Wiki community. It is used here for a free, non-commercial project;
-commercial use is not permitted.
-
-- **Commodities:** every API commodity with default cargo containers.
-- **Locations:** landing zones (cities), manmade locations (stations), distribution centres and logistics
-  depots, and outposts or other places named exactly in hauling-mission text.
-- **`seen_in_hauling`:** a commodity is used by a hauling-mission order (matched by id), or a location is
-  named exactly in hauling-mission pickup or destination text.
+Data from the [Star Citizen Wiki API](https://api.star-citizen.wiki) (api.star-citizen.wiki), maintained
+by the Star Citizen Wiki community. Unofficial; not affiliated with Cloud Imperium Games. The lists were
+gathered once with a local script that is not part of this repository.

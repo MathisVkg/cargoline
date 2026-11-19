@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { CommandError, ContractDetail, CatalogEntry, ContractGrouping, NewContractInput, ReferenceCatalogInfo } from "./types";
+import type { CommandError, ContractDetail, ContractGrouping, LocationEntry, NewContractInput, ReferenceCommodity, ReferenceLocation } from "./types";
 
 /** Typed wrappers around the Rust contract commands. */
 
@@ -53,14 +53,20 @@ export function setContractGrouping(grouping: ContractGrouping): Promise<Contrac
   return call<ContractGrouping>("set_contract_grouping", { grouping });
 }
 
-export function listLocations(): Promise<CatalogEntry[]> {
-  return call<CatalogEntry[]>("list_locations");
+export function listLocations(): Promise<LocationEntry[]> {
+  return call<LocationEntry[]>("list_locations");
 }
 
-export function listCommodities(): Promise<CatalogEntry[]> {
-  return call<CatalogEntry[]>("list_commodities");
+/** Distinct commodity names already used in saved contracts. */
+export function listUsedCommodities(): Promise<string[]> {
+  return call<string[]>("list_used_commodities");
 }
 
-export function getReferenceCatalogInfo(): Promise<ReferenceCatalogInfo> {
-  return call<ReferenceCatalogInfo>("get_reference_catalog_info");
+/** Bundled reference lists (static data shipped with the app). */
+export function listReferenceLocations(): Promise<ReferenceLocation[]> {
+  return call<ReferenceLocation[]>("list_reference_locations");
+}
+
+export function listReferenceCommodities(): Promise<ReferenceCommodity[]> {
+  return call<ReferenceCommodity[]>("list_reference_commodities");
 }
