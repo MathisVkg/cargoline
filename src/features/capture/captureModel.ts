@@ -1,6 +1,6 @@
 // Pure state machine of the Add Contract screenshot preview (no React, no IPC).
-import type { CaptureFailure } from "../contracts/types.ts";
-import type { CaptureInfo } from "./types.ts";
+import type { CaptureFailure, OcrFailure } from "../contracts/types.ts";
+import type { CaptureInfo, OcrResult } from "./types.ts";
 
 export type CapturePhase =
   /** Settings not loaded yet (Add mode). */
@@ -21,7 +21,17 @@ export interface CaptureModel {
   error: { reason: CaptureFailure | "other"; message: string } | null;
   /** The form was closed: a late result must be deleted, never shown. */
   closed: boolean;
+  /** Text recognition of `capture` (restarted by every new capture). */
+  ocr: OcrView;
 }
+
+export interface OcrView {
+  status: "idle" | "reading" | "done" | "error";
+  result: OcrResult | null;
+  error: { reason: OcrFailure | "other"; message: string } | null;
+}
+
+const OCR_IDLE: OcrView = { status: "idle", result: null, error: null };
 
 export type CaptureEvent =
   | { type: "configured"; auto: boolean; delayMs: number }
@@ -29,7 +39,11 @@ export type CaptureEvent =
   | { type: "start" }
   | { type: "succeeded"; capture: CaptureInfo }
   | { type: "failed"; reason: CaptureFailure | "other"; message: string }
-  | { type: "closed" };
+  | { type: "closed" }
+  /** OCR events name their capture: a result for an older capture is ignored. */
+  | { type: "ocrStart"; captureId: number }
+  | { type: "ocrSucceeded"; captureId: number; result: OcrResult }
+  | { type: "ocrFailed"; captureId: number; reason: OcrFailure | "other"; message: string };
 
 export const initialCaptureModel: CaptureModel = {
   phase: "loading",
@@ -37,6 +51,7 @@ export const initialCaptureModel: CaptureModel = {
   capture: null,
   error: null,
   closed: false,
+  ocr: OCR_IDLE,
 };
 
 /** Edit mode never captures; Add mode captures automatically only when the setting is on. */
@@ -56,9 +71,12 @@ export function reduceCapture(model: CaptureModel, event: CaptureEvent): Capture
       return model.phase === "waiting" ? { ...model, remainingMs: Math.max(0, event.remainingMs) } : model;
     case "start":
       if (model.phase === "capturing") return model; // one at a time
-      return { ...model, phase: "capturing", remainingMs: 0, error: null };
+      // A recapture restarts OCR (the caller cancels the running one).
+      return { ...model, phase: "capturing", remainingMs: 0, error: null, ocr: OCR_IDLE };
     case "succeeded":
-      return model.phase === "capturing" ? { ...model, phase: "captured", capture: event.capture, error: null } : model;
+      return model.phase === "capturing"
+        ? { ...model, phase: "captured", capture: event.capture, error: null, ocr: OCR_IDLE }
+        : model;
     case "failed":
       // A failed recapture keeps the previous capture (still linked on save).
       return model.phase === "capturing"
@@ -66,6 +84,74 @@ export function reduceCapture(model: CaptureModel, event: CaptureEvent): Capture
         : model;
     case "closed":
       return { ...model, closed: true };
+    case "ocrStart":
+      if (model.phase !== "captured" || model.capture?.id !== event.captureId) return model;
+      return { ...model, ocr: { status: "reading", result: null, error: null } };
+    case "ocrSucceeded":
+      if (model.capture?.id !== event.captureId || model.ocr.status !== "reading") return model;
+      return { ...model, ocr: { status: "done", result: event.result, error: null } };
+    case "ocrFailed":
+      if (model.capture?.id !== event.captureId || model.ocr.status !== "reading") return model;
+      return { ...model, ocr: { status: "error", result: null, error: { reason: event.reason, message: event.message } } };
+  }
+}
+
+/** The capture whose OCR should start now (a new capture that has not been read yet). */
+export function ocrToStart(model: CaptureModel): number | null {
+  return !model.closed && model.phase === "captured" && model.capture && model.ocr.status === "idle"
+    ? model.capture.id
+    : null;
+}
+
+/** The capture whose OCR must be cancelled on close or recapture. */
+export function ocrToCancel(model: CaptureModel): number | null {
+  return model.ocr.status === "reading" ? (model.capture?.id ?? null) : null;
+}
+
+export type StatusTone = "normal" | "warning" | "error";
+
+/** The header line: capture state first, then the OCR state once a capture exists. */
+export function captureStatus(model: CaptureModel): { text: string; tone: StatusTone; busy: boolean } {
+  if (model.phase === "captured" || (model.phase === "idle" && model.capture)) {
+    const { ocr } = model;
+    const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+    switch (ocr.status) {
+      case "reading":
+        return { text: "Reading text…", tone: "normal", busy: true };
+      case "done": {
+        const r = ocr.result!;
+        if (r.button === "accepted")
+          return { text: `Text read · Accepted contract (${seconds(r.timings.totalMs)})`, tone: "normal", busy: false };
+        if (r.button === "offer")
+          return { text: "Text read · Offer screen — amounts may change after accepting", tone: "warning", busy: false };
+        return { text: `Text read · Contract screen not recognised (${seconds(r.timings.totalMs)})`, tone: "warning", busy: false };
+      }
+      case "error":
+        return { text: ocr.error?.message ?? "Text could not be read", tone: "error", busy: false };
+      case "idle":
+        break;
+    }
+  }
+  return {
+    text: captureHeader(model),
+    tone: model.phase === "error" ? "error" : "normal",
+    busy: model.phase === "capturing",
+  };
+}
+
+/** Short, user-facing message for a typed OCR failure. */
+export function ocrFailureMessage(reason: OcrFailure | "other", fallback: string): string {
+  switch (reason) {
+    case "engineMissing":
+      return "OCR engine not installed — enter the contract manually";
+    case "timeout":
+      return "Reading the text took too long";
+    case "noPanel":
+      return "No contract panel found in the screenshot";
+    case "cancelled":
+      return "Text reading was cancelled";
+    default:
+      return fallback || "Text could not be read";
   }
 }
 

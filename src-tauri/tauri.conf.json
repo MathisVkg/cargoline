@@ -36,6 +36,10 @@
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": {
+      "resources/tesseract/tesseract.exe": "tesseract/tesseract.exe",
+      "resources/tesseract/tessdata/eng.traineddata": "tesseract/tessdata/eng.traineddata"
+    }
   }
 }

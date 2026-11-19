@@ -59,6 +59,7 @@ export function describeError(error: CommandError): string {
     case "conflict":
       return "The active contract list changed in the meantime. Nothing was changed; the list has been reloaded.";
     case "capture":
+    case "ocr":
       return error.message;
   }
 }

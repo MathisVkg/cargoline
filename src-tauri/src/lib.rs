@@ -8,6 +8,7 @@ pub mod commands;
 pub mod contracts;
 pub mod database;
 pub mod locations;
+pub mod ocr;
 pub mod reference;
 pub mod settings;
 
@@ -20,6 +21,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(DatabaseState::default())
         .manage(capture::CaptureState::default())
+        .manage(ocr::service::OcrState::default())
         .register_asynchronous_uri_scheme_protocol("capture", |ctx, request, responder| {
             let app = ctx.app_handle().clone();
             let path = request.uri().path().to_string();
@@ -49,7 +51,9 @@ pub fn run() {
             commands::get_settings,
             commands::update_capture_settings,
             commands::capture_screenshot,
-            commands::discard_capture
+            commands::discard_capture,
+            commands::recognize_capture,
+            commands::cancel_recognition
         ])
         .run(tauri::generate_context!())
         .expect("error while running Cargo Line");

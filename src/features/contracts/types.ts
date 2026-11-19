@@ -97,7 +97,12 @@ export type CommandError =
   /** Bulk action on an out-of-date list; nothing was changed. */
   | { kind: "conflict"; message: string; notFound: number[]; notActive: number[] }
   /** A screenshot could not be taken; manual entry is unaffected. */
-  | { kind: "capture"; reason: CaptureFailure; message: string };
+  | { kind: "capture"; reason: CaptureFailure; message: string }
+  /** Text recognition failed or was cancelled; manual entry is unaffected. */
+  | { kind: "ocr"; reason: OcrFailure; message: string };
+
+/** Why text recognition did not return a result (typed by the backend). */
+export type OcrFailure = "engineMissing" | "timeout" | "noPanel" | "cancelled" | "failed";
 
 /** Why a capture failed (typed by the backend). */
 export type CaptureFailure = "windowNotFound" | "minimized" | "busy" | "timeout" | "unsupported" | "failed";

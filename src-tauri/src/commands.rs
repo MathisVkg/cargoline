@@ -18,6 +18,7 @@ use crate::contracts::{
 };
 use crate::database::models::ContractSource;
 use crate::database::{DatabaseError, DatabaseState};
+use crate::ocr::{service as ocr_service, OcrError, OcrResult};
 use crate::reference::{self, ReferenceCommodity, ReferenceLocation};
 use crate::settings::{self, AppSettings, CaptureSource, ContractGrouping, SettingsError};
 
@@ -59,6 +60,35 @@ pub enum CommandError {
         reason: CaptureFailure,
         message: String,
     },
+    /// Text recognition failed or was cancelled. Manual entry is unaffected.
+    Ocr { reason: OcrFailure, message: String },
+}
+
+/// Why text recognition did not return a result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum OcrFailure {
+    EngineMissing,
+    Timeout,
+    NoPanel,
+    Cancelled,
+    Failed,
+}
+
+impl From<OcrError> for CommandError {
+    fn from(error: OcrError) -> Self {
+        let reason = match error {
+            OcrError::EngineMissing(_) => OcrFailure::EngineMissing,
+            OcrError::Timeout => OcrFailure::Timeout,
+            OcrError::NoPanel => OcrFailure::NoPanel,
+            OcrError::Cancelled => OcrFailure::Cancelled,
+            OcrError::Failed(_) => OcrFailure::Failed,
+        };
+        Self::Ocr {
+            reason,
+            message: error.to_string(),
+        }
+    }
 }
 
 /// Why a capture failed, for the preview's message and Retry button.
@@ -451,4 +481,17 @@ pub async fn capture_screenshot(
 #[tauri::command]
 pub async fn discard_capture(app: AppHandle, id: i64) -> Result<bool, CommandError> {
     run_blocking(move || Ok(capture_service::discard(&app, id)?)).await
+}
+
+/// Reads the text of a stored capture (title, reward and objectives regions). The text is
+/// returned only, never stored. `processing_status` goes pending → processing → done / failed.
+#[tauri::command]
+pub async fn recognize_capture(app: AppHandle, capture_id: i64) -> Result<OcrResult, CommandError> {
+    run_blocking(move || Ok(ocr_service::recognize_capture(&app, capture_id)?)).await
+}
+
+/// Cancels a running recognition (the form was closed or a recapture started).
+#[tauri::command]
+pub fn cancel_recognition(app: AppHandle, capture_id: i64) -> bool {
+    app.state::<ocr_service::OcrState>().cancel(capture_id)
 }

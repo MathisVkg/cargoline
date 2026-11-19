@@ -1,6 +1,6 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { call } from "../contracts/api";
-import type { AppSettings, CaptureInfo, CaptureSettingsInput } from "./types";
+import type { AppSettings, CaptureInfo, CaptureSettingsInput, OcrResult } from "./types";
 
 export function getSettings(): Promise<AppSettings> {
   return call<AppSettings>("get_settings");
@@ -24,4 +24,14 @@ export function discardCapture(id: number): Promise<boolean> {
 /** Image URL served by the backend's `capture:` protocol (captures folder only). */
 export function captureImageUrl(id: number): string {
   return convertFileSrc(String(id), "capture");
+}
+
+/** Reads the text of a stored capture. The text is returned only, never stored. */
+export function recognizeCapture(captureId: number): Promise<OcrResult> {
+  return call<OcrResult>("recognize_capture", { captureId });
+}
+
+/** Cancels a running recognition (form closed, or a recapture started). */
+export function cancelRecognition(captureId: number): Promise<boolean> {
+  return call<boolean>("cancel_recognition", { captureId });
 }

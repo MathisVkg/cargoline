@@ -1,16 +1,26 @@
 import { useCallback, useEffect, useId, useReducer, useRef, useState } from "react";
 import { AlertTriangle, Camera, ChevronRight, Loader2, RefreshCw } from "lucide-react";
 import { describeError, toCommandError } from "../contracts/api";
-import { captureImageUrl, captureScreenshot, discardCapture, getSettings } from "./api";
+import {
+  cancelRecognition,
+  captureImageUrl,
+  captureScreenshot,
+  discardCapture,
+  getSettings,
+  recognizeCapture,
+} from "./api";
 import {
   canCapture,
   captureFailureMessage,
-  captureHeader,
+  captureStatus,
   initialCaptureModel,
+  ocrFailureMessage,
+  ocrToStart,
   reduceCapture,
   shouldAutoCapture,
   type CaptureModel,
 } from "./captureModel";
+import type { OcrRegion } from "./types";
 
 export interface ContractCapture {
   model: CaptureModel;
@@ -18,6 +28,8 @@ export interface ContractCapture {
   captureId: () => number | null;
   /** Capture now (Capture / Recapture / Retry). Replaces the previous unsaved capture. */
   capture: () => void;
+  /** Read the current capture's text again (after an OCR error). */
+  retryOcr: () => void;
   /** Call right before the form closes after a successful save: the capture is kept. */
   markSaved: () => void;
 }
@@ -25,8 +37,9 @@ export interface ContractCapture {
 /**
  * Screenshot flow of the Add Contract form. In Edit mode it does nothing.
  * - Setting on: waits the configured delay, then captures (the form stays usable).
- * - Closing cancels a pending countdown; a capture already running finishes and is deleted.
- * - Closing without saving deletes the unsaved capture.
+ * - Every new capture is read (OCR) in the background; a recapture restarts it.
+ * - Closing cancels a pending countdown and a running OCR; a capture already running
+ *   finishes and is deleted. Closing without saving deletes the unsaved capture.
  */
 export function useContractCapture(mode: "add" | "edit"): ContractCapture {
   const [model, dispatch] = useReducer(reduceCapture, initialCaptureModel);
@@ -34,10 +47,39 @@ export function useContractCapture(mode: "add" | "edit"): ContractCapture {
   const savedRef = useRef(false);
   const captureIdRef = useRef<number | null>(null);
   const inFlightRef = useRef(false);
+  /** The capture whose OCR is running (cancelled on recapture / close). */
+  const readingRef = useRef<number | null>(null);
+
+  const cancelReading = () => {
+    const reading = readingRef.current;
+    readingRef.current = null;
+    if (reading !== null) void cancelRecognition(reading).catch(() => undefined);
+  };
+
+  const readText = useCallback((captureId: number) => {
+    if (closedRef.current || readingRef.current === captureId) return;
+    readingRef.current = captureId;
+    dispatch({ type: "ocrStart", captureId });
+    recognizeCapture(captureId)
+      .then((result) => {
+        if (!closedRef.current) dispatch({ type: "ocrSucceeded", captureId, result });
+      })
+      .catch((thrown: unknown) => {
+        if (closedRef.current) return;
+        const error = toCommandError(thrown);
+        const reason = error.kind === "ocr" ? error.reason : "other";
+        // The reducer ignores this if a recapture replaced the capture meanwhile.
+        dispatch({ type: "ocrFailed", captureId, reason, message: ocrFailureMessage(reason, describeError(error)) });
+      })
+      .finally(() => {
+        if (readingRef.current === captureId) readingRef.current = null;
+      });
+  }, []);
 
   const capture = useCallback(() => {
     if (inFlightRef.current || closedRef.current) return;
     inFlightRef.current = true;
+    cancelReading(); // the previous capture is about to be replaced
     dispatch({ type: "start" });
     captureScreenshot(captureIdRef.current)
       .then((stored) => {
@@ -58,6 +100,12 @@ export function useContractCapture(mode: "add" | "edit"): ContractCapture {
         inFlightRef.current = false;
       });
   }, []);
+
+  // Start OCR for each new capture.
+  const pendingOcr = ocrToStart(model);
+  useEffect(() => {
+    if (pendingOcr !== null) readText(pendingOcr);
+  }, [pendingOcr, readText]);
 
   useEffect(() => {
     if (mode !== "add") return;
@@ -91,6 +139,7 @@ export function useContractCapture(mode: "add" | "edit"): ContractCapture {
       cancelled = true;
       if (timer !== undefined) window.clearTimeout(timer);
       closedRef.current = true;
+      cancelReading(); // before deleting the file it reads
       const unsaved = savedRef.current ? null : captureIdRef.current;
       captureIdRef.current = null;
       if (unsaved !== null) void discardCapture(unsaved).catch(() => undefined);
@@ -101,6 +150,9 @@ export function useContractCapture(mode: "add" | "edit"): ContractCapture {
     model,
     captureId: () => captureIdRef.current,
     capture,
+    retryOcr: () => {
+      if (model.capture && model.ocr.status === "error") readText(model.capture.id);
+    },
     markSaved: () => {
       savedRef.current = true;
     },
@@ -112,9 +164,10 @@ export function CapturePreview({ flow }: { flow: ContractCapture }) {
   const [open, setOpen] = useState(false);
   const bodyId = useId();
   const { model } = flow;
-  const running = model.phase === "loading" || model.phase === "waiting" || model.phase === "capturing";
-  const action = model.phase === "error" ? "Retry" : model.capture ? "Recapture" : "Capture";
-  const ActionIcon = model.capture || model.phase === "error" ? RefreshCw : Camera;
+  const status = captureStatus(model);
+  const counting = model.phase === "loading" || model.phase === "waiting" || model.phase === "capturing";
+  const ocrError = model.ocr.status === "error";
+  const toneClass = status.tone === "error" ? "text-danger" : status.tone === "warning" ? "text-accent" : "text-dim";
 
   return (
     <section aria-label="Screenshot" className="mt-4 rounded-sm border border-line bg-raised/40">
@@ -131,29 +184,30 @@ export function CapturePreview({ flow }: { flow: ContractCapture }) {
             aria-hidden="true"
           />
           <span className="label-tech shrink-0">Screenshot</span>
-          {model.phase === "capturing" && <Loader2 className="size-3.5 shrink-0 animate-spin text-accent" aria-hidden="true" />}
-          {model.phase === "error" && <AlertTriangle className="size-3.5 shrink-0 text-danger" aria-hidden="true" />}
-          <span
-            aria-live="polite"
-            className={`min-w-0 truncate text-xs ${model.phase === "error" ? "text-danger" : "text-dim"}`}
-          >
-            {captureHeader(model)}
+          {status.busy && <Loader2 className="size-3.5 shrink-0 animate-spin text-accent" aria-hidden="true" />}
+          {status.tone !== "normal" && (
+            <AlertTriangle
+              className={`size-3.5 shrink-0 ${status.tone === "error" ? "text-danger" : "text-accent"}`}
+              aria-hidden="true"
+            />
+          )}
+          <span aria-live="polite" className={`min-w-0 truncate text-xs ${toneClass}`} title={status.text}>
+            {status.text}
           </span>
         </button>
-        {!running && (
-          <button
-            type="button"
-            onClick={flow.capture}
-            disabled={!canCapture(model)}
-            className="flex h-7 shrink-0 items-center gap-1.5 rounded-sm border border-line px-2.5 text-xs font-medium text-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-50"
-          >
-            <ActionIcon className="size-3.5" aria-hidden="true" />
-            {action}
-          </button>
+        {ocrError && (
+          <HeaderButton onClick={flow.retryOcr} icon={RefreshCw}>
+            Retry
+          </HeaderButton>
+        )}
+        {!counting && (
+          <HeaderButton onClick={flow.capture} disabled={!canCapture(model)} icon={model.capture || model.phase === "error" ? RefreshCw : Camera}>
+            {model.phase === "error" ? "Retry" : model.capture ? "Recapture" : "Capture"}
+          </HeaderButton>
         )}
       </div>
       {open && (
-        <div id={bodyId} className="border-t border-line p-2">
+        <div id={bodyId} className="space-y-2 border-t border-line p-2">
           {model.capture ? (
             <img
               src={captureImageUrl(model.capture.id)}
@@ -163,8 +217,71 @@ export function CapturePreview({ flow }: { flow: ContractCapture }) {
           ) : (
             <p className="px-1 py-2 text-xs text-dim">No screenshot yet.</p>
           )}
+          {model.ocr.status === "done" && model.ocr.result && <RecognisedText regions={model.ocr.result.regions} />}
         </div>
       )}
     </section>
+  );
+}
+
+function HeaderButton({
+  onClick,
+  disabled,
+  icon: Icon,
+  children,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  icon: typeof Camera;
+  children: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex h-7 shrink-0 items-center gap-1.5 rounded-sm border border-line px-2.5 text-xs font-medium text-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-50"
+    >
+      <Icon className="size-3.5" aria-hidden="true" />
+      {children}
+    </button>
+  );
+}
+
+const REGION_LABEL = { title: "Title", reward: "Reward", objectives: "Objectives" } as const;
+
+/** Temporary check view (Task 09 replaces it with form filling): raw lines and confidences. */
+function RecognisedText({ regions }: { regions: OcrRegion[] }) {
+  return (
+    <details className="rounded-sm border border-line bg-surface">
+      <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-muted hover:text-fg">Recognised text</summary>
+      <div className="space-y-3 border-t border-line px-3 py-2">
+        {regions.map((region) => (
+          <div key={region.kind}>
+            <p className="label-tech mb-1">
+              {REGION_LABEL[region.kind]}
+              {region.source === "fallback" && <span className="ml-2 normal-case text-accent">(panel not found, fixed area)</span>}
+            </p>
+            {region.lines.length === 0 ? (
+              <p className="text-xs text-dim">No text.</p>
+            ) : (
+              <ul className="space-y-0.5">
+                {region.lines.map((line, i) => (
+                  <li key={i} className="flex items-baseline gap-2 text-xs">
+                    <span
+                      className={`w-8 shrink-0 text-right font-mono ${line.confidence >= 0 && line.confidence < 60 ? "text-accent" : "text-dim"}`}
+                      title="Confidence (0–100)"
+                    >
+                      {line.confidence < 0 ? "–" : Math.round(line.confidence)}
+                    </span>
+                    <span className="min-w-0 break-words text-fg">{line.text}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }

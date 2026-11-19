@@ -409,3 +409,81 @@ pub fn cleanup(conn: &Connection, dir: &Path, now_ms: i64, remove_unlinked: bool
     }
     report
 }
+
+/* ---------------------------------------------------- processing status */
+
+/// OCR state of a capture (`contract_captures.processing_status`, migration 0005).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProcessingStatus {
+    Pending,
+    Processing,
+    Done,
+    Failed,
+}
+
+impl ProcessingStatus {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Processing => "processing",
+            Self::Done => "done",
+            Self::Failed => "failed",
+        }
+    }
+
+    fn parse(text: &str) -> Option<Self> {
+        Some(match text {
+            "pending" => Self::Pending,
+            "processing" => Self::Processing,
+            "done" => Self::Done,
+            "failed" => Self::Failed,
+            _ => return None,
+        })
+    }
+}
+
+pub fn processing_status(conn: &Connection, id: i64) -> rusqlite::Result<Option<ProcessingStatus>> {
+    let text: Option<String> = conn
+        .query_row(
+            "SELECT processing_status FROM contract_captures WHERE id = ?1",
+            [id],
+            |r| r.get(0),
+        )
+        .optional()?;
+    Ok(text.as_deref().and_then(ProcessingStatus::parse))
+}
+
+/// `pending | done | failed | processing` → `processing` (a retry or a re-run after a crash).
+/// Returns false if the capture does not exist.
+pub fn begin_processing(conn: &Connection, id: i64) -> rusqlite::Result<bool> {
+    Ok(conn.execute(
+        "UPDATE contract_captures SET processing_status = 'processing' WHERE id = ?1",
+        [id],
+    )? == 1)
+}
+
+/// `processing` → `done`, `failed`, or back to `pending` (cancelled). Any other current state is
+/// left unchanged and returns false.
+pub fn finish_processing(
+    conn: &Connection,
+    id: i64,
+    outcome: ProcessingStatus,
+) -> rusqlite::Result<bool> {
+    if outcome == ProcessingStatus::Processing {
+        return Ok(false);
+    }
+    Ok(conn.execute(
+        "UPDATE contract_captures SET processing_status = ?2
+         WHERE id = ?1 AND processing_status = 'processing'",
+        params![id, outcome.as_str()],
+    )? == 1)
+}
+
+/// Startup: a capture left `processing` by a crash is marked `failed`.
+pub fn fail_interrupted(conn: &Connection) -> rusqlite::Result<usize> {
+    conn.execute(
+        "UPDATE contract_captures SET processing_status = 'failed' WHERE processing_status = 'processing'",
+        [],
+    )
+}

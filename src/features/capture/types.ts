@@ -32,3 +32,49 @@ export interface CaptureInfo {
   width: number | null;
   height: number | null;
 }
+
+/* ---------- OCR (recognition only; Task 09 turns it into form fields) ---------- */
+
+export interface OcrBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface OcrWord {
+  text: string;
+  /** 0–100 (-1 when unknown). */
+  confidence: number;
+  box: OcrBox;
+}
+
+export interface OcrLine {
+  text: string;
+  /** Mean word confidence, 0–100 (-1 when unknown). */
+  confidence: number;
+  box: OcrBox;
+  words: OcrWord[];
+}
+
+export type OcrRegionKind = "title" | "reward" | "objectives";
+
+export interface OcrRegion {
+  kind: OcrRegionKind;
+  box: OcrBox;
+  /** "fallback" when the anchor was not found and fixed fractions were used. */
+  source: "anchor" | "fallback";
+  lines: OcrLine[];
+}
+
+/** accepted = ABANDON button (Accepted tab); offer = ACCEPT OFFER (Offers tab). */
+export type OcrButtonState = "accepted" | "offer" | "unknown";
+
+export interface OcrResult {
+  width: number;
+  height: number;
+  anchors: { header: boolean; reward: boolean; button: boolean };
+  button: OcrButtonState;
+  regions: OcrRegion[];
+  timings: { loadMs: number; anchorMs: number; regionsMs: number; totalMs: number };
+}

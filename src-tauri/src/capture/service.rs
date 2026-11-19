@@ -177,6 +177,11 @@ pub fn start_cleanup<R: Runtime>(app: &AppHandle<R>) {
                     (Ok(db), Ok(dir)) => match db.connection() {
                         Ok(conn) => {
                             let report = storage::cleanup(&conn, &dir, now_utc_ms(), startup);
+                        if startup {
+                            if let Err(e) = storage::fail_interrupted(&conn) {
+                                eprintln!("[cargo-line] could not reset interrupted OCR states: {e}");
+                            }
+                        }
                             drop(conn);
                             let removed = report.expired
                                 + report.unlinked
