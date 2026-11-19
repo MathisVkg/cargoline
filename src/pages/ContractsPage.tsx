@@ -1,0 +1,247 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, ChevronsDownUp, ChevronsUpDown, ClipboardList, LoaderCircle, Plus, RotateCw } from "lucide-react";
+import { EmptyState, PageContainer, PageHeader, Panel, PanelHeader, Tag } from "../components/ui";
+import { AddContractModal } from "../features/contracts/AddContractModal";
+import { ContractView } from "../features/contracts/ContractView";
+import { LocationView } from "../features/contracts/LocationView";
+import {
+  describeError,
+  getContractGrouping,
+  listActiveContracts,
+  setContractGrouping,
+  toCommandError,
+} from "../features/contracts/api";
+import {
+  groupByContract,
+  groupByLocation,
+  isCombinedKey,
+  isExpanded,
+  setAllExpanded,
+  toggleExpanded,
+  type ExpansionState,
+} from "../features/contracts/grouping";
+import type { CommandError, ContractDetail, ContractGrouping } from "../features/contracts/types";
+
+const MODES: { id: ContractGrouping; label: string }[] = [
+  { id: "by_location", label: "By Location" },
+  { id: "by_contract", label: "By Contract" },
+];
+
+/** Location groups start open (operational view); contract groups start closed (review view). */
+const DEFAULT_EXPANDED: Record<ContractGrouping, boolean> = { by_location: true, by_contract: false };
+
+const PLANNED_FLOW = [
+  { step: "Delay", text: "Wait for the configured capture delay." },
+  { step: "Capture", text: "Screenshot the Star Citizen window or display." },
+  { step: "Recognise", text: "Read contract details locally with OCR." },
+  { step: "Review", text: "Check and edit every recognised field." },
+  { step: "Confirm", text: "Save only after explicit confirmation." },
+] as const;
+
+type ListState =
+  | { status: "loading" }
+  | { status: "error"; error: CommandError }
+  | { status: "ready"; contracts: ContractDetail[] };
+
+export function ContractsPage() {
+  const [list, setList] = useState<ListState>({ status: "loading" });
+  const [mode, setMode] = useState<ContractGrouping>("by_location");
+  const [modeLoaded, setModeLoaded] = useState(false);
+  const [modeSaveFailed, setModeSaveFailed] = useState(false);
+  const [expansion, setExpansion] = useState<Record<ContractGrouping, ExpansionState>>({
+    by_location: new Map(),
+    by_contract: new Map(),
+  });
+  const [adding, setAdding] = useState(false);
+
+  const refresh = useCallback(async () => {
+    try {
+      setList({ status: "ready", contracts: await listActiveContracts() });
+    } catch (error) {
+      setList({ status: "error", error: toCommandError(error) });
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+    let cancelled = false;
+    getContractGrouping()
+      .then((saved) => !cancelled && setMode(saved))
+      .catch(() => undefined) // keep the default; the list shows any database problem
+      .finally(() => !cancelled && setModeLoaded(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [refresh]);
+
+  const chooseMode = (next: ContractGrouping) => {
+    if (next === mode) return;
+    setMode(next);
+    setModeSaveFailed(false);
+    setContractGrouping(next).catch(() => setModeSaveFailed(true));
+  };
+
+  const contracts = list.status === "ready" ? list.contracts : [];
+  const locationGroups = useMemo(() => groupByLocation(contracts), [contracts]);
+  const contractGroups = useMemo(() => groupByContract(contracts), [contracts]);
+  const groupKeys = mode === "by_location" ? locationGroups.map((g) => g.key) : contractGroups.map((g) => g.key);
+
+  // Combined manifest lines start collapsed; groups use the mode default.
+  const defaultFor = (key: string) => (isCombinedKey(key) ? false : DEFAULT_EXPANDED[mode]);
+  const expandedFor = (key: string) => isExpanded(expansion[mode], key, defaultFor(key));
+  const toggle = (key: string) =>
+    setExpansion((current) => ({ ...current, [mode]: toggleExpanded(current[mode], key, defaultFor(key)) }));
+  const setAll = (expanded: boolean) => setExpansion((current) => ({ ...current, [mode]: setAllExpanded(groupKeys, expanded) }));
+
+  const handleSaved = (saved: ContractDetail) => {
+    setAdding(false);
+    // Show the new contract immediately, then reload the authoritative list.
+    setList((current) =>
+      current.status === "ready" ? { status: "ready", contracts: [saved, ...current.contracts] } : current,
+    );
+    void refresh();
+  };
+
+  const count = contracts.length;
+  const ready = list.status === "ready" && modeLoaded;
+
+  return (
+    <PageContainer>
+      <PageHeader
+        index="01"
+        title="Contracts"
+        description="Active hauling contracts, grouped by location or by contract."
+        actions={
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="inline-flex h-9 items-center gap-2 rounded-sm bg-accent px-3 text-sm font-semibold text-(color:--color-base) transition-[filter] duration-150 hover:brightness-110"
+          >
+            <Plus className="size-4 shrink-0" aria-hidden="true" />
+            <span className="whitespace-nowrap">Add Contract</span>
+          </button>
+        }
+      />
+
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div role="group" aria-label="Group contracts" className="inline-flex rounded-sm border border-line bg-surface p-0.5">
+            {MODES.map(({ id, label }) => {
+              const active = id === mode;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => chooseMode(id)}
+                  className={[
+                    "h-8 rounded-[2px] px-3 text-sm whitespace-nowrap transition-colors duration-150 focus-visible:outline-offset-0",
+                    active ? "bg-raised font-medium text-fg shadow-[inset_0_-2px_0_var(--color-accent)]" : "text-dim hover:text-muted",
+                  ].join(" ")}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          {ready && count > 0 && (
+            <div className="flex items-center">
+              <ToolbarButton icon={ChevronsUpDown} label="Expand all" onClick={() => setAll(true)} />
+              <ToolbarButton icon={ChevronsDownUp} label="Collapse all" onClick={() => setAll(false)} />
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col items-end">
+          <span className="label-tech" aria-live="polite">
+            {count} active contract{count === 1 ? "" : "s"}
+            {ready && mode === "by_location" && count > 0 && ` · ${locationGroups.length} locations`}
+          </span>
+          {modeSaveFailed && (
+            <span role="status" className="text-xs text-danger">
+              The view preference could not be saved.
+            </span>
+          )}
+        </div>
+      </div>
+
+      {(list.status === "loading" || (list.status === "ready" && !modeLoaded)) && (
+        <Panel>
+          <div className="flex items-center justify-center gap-2 px-6 py-14 text-sm text-muted" role="status">
+            <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+            Loading contracts…
+          </div>
+        </Panel>
+      )}
+
+      {list.status === "error" && (
+        <Panel>
+          <div role="alert" className="flex flex-col items-center gap-3 px-6 py-10 text-center">
+            <AlertTriangle className="size-5 text-danger" aria-hidden="true" />
+            <p className="max-w-lg text-sm break-words text-muted">{describeError(list.error)}</p>
+            <button
+              type="button"
+              onClick={() => {
+                setList({ status: "loading" });
+                void refresh();
+              }}
+              className="inline-flex h-8 items-center gap-1.5 rounded-sm border border-line px-3 text-sm text-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+            >
+              <RotateCw className="size-3.5" aria-hidden="true" />
+              Retry
+            </button>
+          </div>
+        </Panel>
+      )}
+
+      {ready &&
+        (count === 0 ? (
+          <Panel>
+            <EmptyState icon={ClipboardList} title="No active contracts">
+              Use Add Contract to enter a contract and its cargo. Pickups and turn-ins will be listed here by location
+              or by contract.
+            </EmptyState>
+          </Panel>
+        ) : mode === "by_location" ? (
+          <LocationView groups={locationGroups} isExpanded={expandedFor} onToggle={toggle} />
+        ) : (
+          <ContractView groups={contractGroups} isExpanded={expandedFor} onToggle={toggle} />
+        ))}
+
+      {ready && count > 0 && (
+        <p className="mt-2 text-xs text-dim">
+          “?” marks a location whose share of the cargo is unknown. Pick up and turn in tracking is not available yet.
+        </p>
+      )}
+
+      <Panel className="mt-6">
+        <PanelHeader title="Planned screenshot capture" meta={<Tag>Preview</Tag>} />
+        <ol className="grid gap-px bg-line sm:grid-cols-5">
+          {PLANNED_FLOW.map(({ step, text }, i) => (
+            <li key={step} className="min-w-0 bg-surface px-4 py-3">
+              <p className="label-tech">
+                <span className="text-accent">{String(i + 1).padStart(2, "0")}</span> {step}
+              </p>
+              <p className="mt-1 text-sm text-muted break-words">{text}</p>
+            </li>
+          ))}
+        </ol>
+      </Panel>
+
+      {adding && <AddContractModal onClose={() => setAdding(false)} onSaved={handleSaved} />}
+    </PageContainer>
+  );
+}
+
+function ToolbarButton({ icon: Icon, label, onClick }: { icon: typeof Plus; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="grid size-8 place-items-center rounded-sm text-dim transition-colors duration-150 hover:bg-raised hover:text-fg"
+    >
+      <Icon className="size-4" aria-hidden="true" />
+    </button>
+  );
+}

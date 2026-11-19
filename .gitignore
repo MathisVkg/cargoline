@@ -1,0 +1,72 @@
+# --- Dependencies & build output ---
+node_modules/
+dist/
+dist-ssr/
+src-tauri/target/
+src-tauri/gen/
+*.tsbuildinfo
+.vite/
+
+# --- Environment & secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+
+# --- Local data (databases, captures, logs) ---
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal
+captures/
+screenshots/
+*.log
+Game.log*
+logs/
+
+# --- Agent / task artifacts (Codex, Claude) and local test material ---
+.codex/
+.claude/
+.agent-local/
+CLAUDE.local.md
+TASK_*.md
+FOUNDATION.md
+RULES.md
+*.report.md
+reports/
+fixtures/
+# Automated test files stay local (project policy). Both suites still run locally.
+/tests/
+/src-tauri/tests/
+# Catalog importer download cache (raw API responses)
+tools/catalog-import/.cache/
+test-data/
+test-output/
+diagnostics/
+coverage/
+*.png.tmp
+
+# --- Temp & OS/editor files ---
+tmp/
+temp/
+*.tmp
+*.bak
+*~
+Thumbs.db
+Desktop.ini
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
