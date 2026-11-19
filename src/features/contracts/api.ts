@@ -1,17 +1,28 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { CommandError, ContractDetail, ContractGrouping, LocationEntry, NewContractInput, ReferenceCommodity, ReferenceLocation } from "./types";
+import type {
+  CommandError,
+  ContractDetail,
+  ContractGrouping,
+  FinalStatus,
+  LocationEntry,
+  NewContractInput,
+  ReferenceCommodity,
+  ReferenceLocation,
+  StopDetail,
+} from "./types";
 
 /** Typed wrappers around the Rust contract commands. */
 
-export function createContract(input: NewContractInput): Promise<ContractDetail> {
-  return call<ContractDetail>("create_contract", { input });
+/** Saves a new contract; `captureId` (the form's unsaved screenshot) is linked in the same transaction. */
+export function createContract(input: NewContractInput, captureId: number | null = null): Promise<ContractDetail> {
+  return call<ContractDetail>("create_contract", { input, captureId });
 }
 
 export function listActiveContracts(): Promise<ContractDetail[]> {
   return call<ContractDetail[]>("list_active_contracts");
 }
 
-async function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+export async function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   try {
     return await invoke<T>(command, args);
   } catch (error) {
@@ -41,6 +52,14 @@ export function describeError(error: CommandError): string {
       return `A database operation failed and nothing was changed. ${error.message}`;
     case "internal":
       return `Unexpected error: ${error.message}`;
+    case "notFound":
+      return "This contract no longer exists.";
+    case "notActive":
+      return `This contract is already ${error.status}.`;
+    case "conflict":
+      return "The active contract list changed in the meantime. Nothing was changed; the list has been reloaded.";
+    case "capture":
+      return error.message;
   }
 }
 
@@ -69,4 +88,32 @@ export function listReferenceLocations(): Promise<ReferenceLocation[]> {
 
 export function listReferenceCommodities(): Promise<ReferenceCommodity[]> {
   return call<ReferenceCommodity[]>("list_reference_commodities");
+}
+
+/** Marks one active contract completed (run and cargo unchanged). */
+export function completeContract(id: number): Promise<ContractDetail> {
+  return call<ContractDetail>("complete_contract", { id });
+}
+
+/** Marks one active contract abandoned (run and cargo unchanged). */
+export function abandonContract(id: number): Promise<ContractDetail> {
+  return call<ContractDetail>("abandon_contract", { id });
+}
+
+/**
+ * Finalises exactly `ids` (the contracts the confirmation dialog showed), all
+ * or nothing. A stale list rejects with `{ kind: "conflict" }`.
+ */
+export function finalizeActiveContracts(ids: number[], status: FinalStatus): Promise<ContractDetail[]> {
+  return call<ContractDetail[]>("finalize_active_contracts", { ids, status });
+}
+
+/** Edits an active contract (same input and validation as createContract). */
+export function updateContract(id: number, input: NewContractInput): Promise<ContractDetail> {
+  return call<ContractDetail>("update_contract", { id, input });
+}
+
+/** Ticks or unticks the Pick Up / Turn In reminder of the given stops. */
+export function setStopReminder(stopIds: number[], done: boolean): Promise<StopDetail[]> {
+  return call<StopDetail[]>("set_stop_reminder", { stopIds, done });
 }

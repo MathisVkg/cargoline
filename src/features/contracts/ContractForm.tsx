@@ -310,6 +310,7 @@ function TextField({ label, value, onChange, error, placeholder, inputMode, opti
         placeholder={placeholder}
         inputMode={inputMode}
         autoFocus={autoFocus}
+        data-autofocus={autoFocus ? "" : undefined}
         autoComplete="off"
         spellCheck={false}
         aria-invalid={error ? true : undefined}

@@ -12,7 +12,7 @@ use rusqlite::Transaction;
 use rusqlite_migration::{HookError, HookResult, Migrations, M};
 
 /// The schema version produced by applying every known migration.
-pub const LATEST_SCHEMA_VERSION: i64 = 2;
+pub const LATEST_SCHEMA_VERSION: i64 = 4;
 
 /// All schema migrations, in application order (index + 1 = version).
 pub fn migrations() -> Migrations<'static> {
@@ -22,6 +22,8 @@ pub fn migrations() -> Migrations<'static> {
             include_str!("0002_location_catalog.sql"),
             seed_location_catalog,
         ),
+        M::up(include_str!("0003_stop_reminders.sql")),
+        M::up(include_str!("0004_capture_details.sql")),
     ])
 }
 

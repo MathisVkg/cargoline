@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import { ContractForm } from "./ContractForm";
+import { CapturePreview, useContractCapture } from "../capture/CapturePreview";
 import {
   createContract,
   describeError,
@@ -9,33 +10,58 @@ import {
   listReferenceLocations,
   listUsedCommodities,
   toCommandError,
+  updateContract,
 } from "./api";
-import { emptyDraft, isDraftEmpty, issuesByPath, toInput, validateDraft, type ContractDraft } from "./draft";
+import {
+  draftFromContract,
+  emptyDraft,
+  isDraftDirty,
+  issuesByPath,
+  toInput,
+  validateDraft,
+  type ContractDraft,
+} from "./draft";
+import { contractRef } from "./grouping";
 import { formatScu, parseScuMilli } from "./scu";
 import type { CommandError, ContractDetail, LocationEntry, ReferenceCommodity, ReferenceLocation, ValidationIssue } from "./types";
 
 interface AddContractModalProps {
   onClose: () => void;
   onSaved: (contract: ContractDetail) => void;
-  /** Pre-filled values (e.g. future OCR results). Defaults to an empty form. */
+  /** Edit mode: the stored contract to change (prefills the same form). */
+  editing?: ContractDetail;
+  /** Edit mode: the contract is gone or no longer active (page closes, reloads, explains). */
+  onStale?: (message: string) => void;
+  /** Pre-filled values for a new contract (e.g. future OCR results). Defaults to an empty form. */
   initialDraft?: ContractDraft;
 }
 
 /**
- * Centered modal for adding a contract. Mount it to open; unmount to close.
- * Uses the native <dialog> element for focus containment and an inert backdrop.
+ * Centered modal for adding or editing a contract, using the one shared
+ * ContractForm. Mount it to open; unmount to close. Uses the native <dialog>
+ * element for focus containment and an inert backdrop. Closing with unsaved
+ * changes (Esc, Cancel or ✕) asks for confirmation first.
  */
-export function AddContractModal({ onClose, onSaved, initialDraft }: AddContractModalProps) {
+export function AddContractModal({ onClose, onSaved, editing, onStale, initialDraft }: AddContractModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [draft, setDraft] = useState<ContractDraft>(() => initialDraft ?? emptyDraft());
+  const keepEditingRef = useRef<HTMLButtonElement>(null);
+  // What the form started with; "dirty" means the payload would differ from it.
+  const [baseline] = useState<ContractDraft>(() => (editing ? draftFromContract(editing) : (initialDraft ?? emptyDraft())));
+  const [draft, setDraft] = useState<ContractDraft>(baseline);
   const [attempted, setAttempted] = useState(false);
   const [serverIssues, setServerIssues] = useState<ValidationIssue[]>([]);
   const [error, setError] = useState<CommandError | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [referenceLocations, setReferenceLocations] = useState<ReferenceLocation[]>([]);
   const [referenceCommodities, setReferenceCommodities] = useState<ReferenceCommodity[]>([]);
   const [userLocations, setUserLocations] = useState<LocationEntry[]>([]);
   const [usedCommodities, setUsedCommodities] = useState<string[]>([]);
+
+  const ref = editing ? contractRef(editing.id) : null;
+  // Add mode only: background screenshot after the configured delay (never in Edit mode).
+  const captureFlow = useContractCapture(editing ? "edit" : "add");
+  const dirty = isDraftDirty(draft, baseline);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,8 +81,14 @@ export function AddContractModal({ onClose, onSaved, initialDraft }: AddContract
   useEffect(() => {
     const dialog = dialogRef.current;
     if (dialog && !dialog.open) dialog.showModal();
+    // showModal() focuses the first control (the close button); start in the title field instead.
+    dialog?.querySelector<HTMLElement>("[data-autofocus]")?.focus();
     return () => dialog?.close();
   }, []);
+
+  useEffect(() => {
+    if (confirmDiscard) keepEditingRef.current?.focus();
+  }, [confirmDiscard]);
 
   const issues = useMemo(
     () => issuesByPath([...(attempted ? validateDraft(draft) : []), ...serverIssues]),
@@ -79,6 +111,7 @@ export function AddContractModal({ onClose, onSaved, initialDraft }: AddContract
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (saving) return;
+    setConfirmDiscard(false);
     setAttempted(true);
     setError(null);
     if (validateDraft(draft).length > 0) {
@@ -88,12 +121,21 @@ export function AddContractModal({ onClose, onSaved, initialDraft }: AddContract
     }
     setSaving(true);
     try {
-      onSaved(await createContract(toInput(draft)));
+      const input = toInput(draft);
+      if (editing) {
+        onSaved(await updateContract(editing.id, input));
+      } else {
+        const saved = await createContract(input, captureFlow.captureId());
+        captureFlow.markSaved(); // linked to the contract: keep it when the form closes
+        onSaved(saved);
+      }
     } catch (thrown) {
       const failure = toCommandError(thrown);
       if (failure.kind === "validation") {
         setServerIssues(failure.issues);
         focusFirstInvalid();
+      } else if (editing && onStale && (failure.kind === "notFound" || failure.kind === "notActive")) {
+        onStale(describeError(failure));
       } else {
         setError(failure);
       }
@@ -102,8 +144,11 @@ export function AddContractModal({ onClose, onSaved, initialDraft }: AddContract
     }
   };
 
+  /** Esc, Cancel and ✕: close right away when nothing changed, otherwise ask first. */
   const requestClose = () => {
-    if (!saving) onClose();
+    if (saving) return;
+    if (dirty) setConfirmDiscard(true);
+    else onClose();
   };
 
   return (
@@ -112,9 +157,9 @@ export function AddContractModal({ onClose, onSaved, initialDraft }: AddContract
       aria-labelledby="add-contract-title"
       aria-describedby="add-contract-description"
       onCancel={(e) => {
-        // Escape only closes an untouched form, so typed data is never lost by accident.
         e.preventDefault();
-        if (isDraftEmpty(draft)) requestClose();
+        if (confirmDiscard) setConfirmDiscard(false);
+        else requestClose();
       }}
       className={[
         "m-auto w-[min(56rem,calc(100%-2rem))] max-w-none max-h-[calc(100%-2rem)] flex-col overflow-hidden p-0 open:flex",
@@ -125,7 +170,7 @@ export function AddContractModal({ onClose, onSaved, initialDraft }: AddContract
         <header className="flex shrink-0 items-center justify-between gap-4 border-b border-line px-4 py-2.5">
           <div className="min-w-0">
             <h2 id="add-contract-title" className="text-[15px] font-semibold tracking-tight text-fg">
-              Add Contract
+              {ref ? `Edit ${ref}` : "Add Contract"}
             </h2>
             <p id="add-contract-description" className="text-xs break-words text-dim">
               Nothing is saved until you confirm.
@@ -143,11 +188,17 @@ export function AddContractModal({ onClose, onSaved, initialDraft }: AddContract
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3">
-          <ContractForm draft={draft} onChange={change} issues={issues} referenceLocations={referenceLocations}
+          <ContractForm
+            draft={draft}
+            onChange={change}
+            issues={issues}
+            referenceLocations={referenceLocations}
             referenceCommodities={referenceCommodities}
             userLocations={userLocations}
             usedCommodities={usedCommodities}
-            disabled={saving} />
+            disabled={saving}
+          />
+          {!editing && <CapturePreview flow={captureFlow} />}
         </div>
 
         <footer className="shrink-0 border-t border-line bg-surface px-4 py-2.5">
@@ -165,29 +216,52 @@ export function AddContractModal({ onClose, onSaved, initialDraft }: AddContract
               Some fields need attention. Your entries are kept.
             </p>
           )}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="label-tech" aria-live="polite">
-              Total <span className="font-mono text-fg">{formatScu(totalMilli)}</span> SCU ·{" "}
-              {draft.requirements.length} objective{draft.requirements.length === 1 ? "" : "s"}
-            </p>
-            <div className="ml-auto flex items-center gap-2">
-              <button
-                type="button"
-                onClick={requestClose}
-                disabled={saving}
-                className="h-9 rounded-sm border border-line px-4 text-sm font-medium text-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving}
-                className="h-9 rounded-sm bg-accent px-4 text-sm font-semibold text-(color:--color-canvas) transition-[filter] duration-150 hover:brightness-110 disabled:opacity-60"
-              >
-                {saving ? "Saving…" : "Add Contract"}
-              </button>
+          {confirmDiscard ? (
+            <div role="alertdialog" aria-label="Discard unsaved changes?" className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-fg">{ref ? "Discard your changes to this contract?" : "Discard this new contract?"}</p>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  ref={keepEditingRef}
+                  type="button"
+                  onClick={() => setConfirmDiscard(false)}
+                  className="h-9 rounded-sm border border-line px-4 text-sm font-medium text-muted transition-colors duration-150 hover:border-line-strong hover:text-fg"
+                >
+                  Keep editing
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="h-9 rounded-sm bg-danger px-4 text-sm font-semibold text-(color:--color-canvas) transition-[filter] duration-150 hover:brightness-110"
+                >
+                  Discard
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="label-tech" aria-live="polite">
+                Total <span className="font-mono text-fg">{formatScu(totalMilli)}</span> SCU ·{" "}
+                {draft.requirements.length} objective{draft.requirements.length === 1 ? "" : "s"}
+              </p>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={requestClose}
+                  disabled={saving}
+                  className="h-9 rounded-sm border border-line px-4 text-sm font-medium text-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="h-9 rounded-sm bg-accent px-4 text-sm font-semibold text-(color:--color-canvas) transition-[filter] duration-150 hover:brightness-110 disabled:opacity-60"
+                >
+                  {saving ? "Saving…" : ref ? "Save changes" : "Add Contract"}
+                </button>
+              </div>
+            </div>
+          )}
         </footer>
       </form>
     </dialog>

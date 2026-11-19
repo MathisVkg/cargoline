@@ -1,20 +1,33 @@
 import { useId } from "react";
-import { BoxText, GroupHeader, OPERATION, StopQuantityText, plural } from "./display";
+import { BoxText, GroupHeader, OPERATION, ReminderCheckbox, StopQuantityText, plural } from "./display";
 import { boxInfo, type ContractGroup, type ObjectiveRow, type StopEntry } from "./grouping";
+import { ContractActionsMenu, type RequestEdit, type RequestFinalize, type ToggleReminder } from "./ContractActionsMenu";
+import { reminderIntent } from "./reminders";
 import { formatAuec, formatScu } from "./scu";
 
 interface ContractViewProps {
   groups: ContractGroup[];
   isExpanded: (key: string) => boolean;
   onToggle: (key: string) => void;
+  onRequestFinalize: RequestFinalize;
+  onEditContract: RequestEdit;
+  onToggleReminder: ToggleReminder;
 }
 
 /** Review mode: one expandable group per active contract, newest first. */
-export function ContractView({ groups, isExpanded, onToggle }: ContractViewProps) {
+export function ContractView({ groups, isExpanded, onToggle, onRequestFinalize, onEditContract, onToggleReminder }: ContractViewProps) {
   return (
     <div className="@container flex flex-col gap-1" role="list" aria-label="Active contracts">
       {groups.map((group) => (
-        <ContractSection key={group.key} group={group} expanded={isExpanded(group.key)} onToggle={() => onToggle(group.key)} />
+        <ContractSection
+          key={group.key}
+          group={group}
+          expanded={isExpanded(group.key)}
+          onToggle={() => onToggle(group.key)}
+          onRequestFinalize={onRequestFinalize}
+          onEditContract={onEditContract}
+          onToggleReminder={onToggleReminder}
+        />
       ))}
     </div>
   );
@@ -28,11 +41,26 @@ const LINE =
 
 const timeFormat = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
 
-function ContractSection({ group, expanded, onToggle }: { group: ContractGroup; expanded: boolean; onToggle: () => void }) {
+function ContractSection({
+  group,
+  expanded,
+  onToggle,
+  onRequestFinalize,
+  onEditContract,
+  onToggleReminder,
+}: {
+  group: ContractGroup;
+  expanded: boolean;
+  onToggle: () => void;
+  onRequestFinalize: RequestFinalize;
+  onEditContract: RequestEdit;
+  onToggleReminder: ToggleReminder;
+}) {
   const bodyId = useId();
   return (
     <section role="listitem" className="min-w-0 border-b border-line">
-      <h3 className="m-0">
+      <div className="flex min-w-0 items-center">
+      <h3 className="m-0 min-w-0 flex-1">
         <GroupHeader
           expanded={expanded}
           controls={bodyId}
@@ -55,6 +83,15 @@ function ContractSection({ group, expanded, onToggle }: { group: ContractGroup; 
           }
         />
       </h3>
+        <ContractActionsMenu
+          variant="icon"
+          contractId={group.contractId}
+          contractRef={group.contractRef}
+          title={group.title}
+          onRequest={onRequestFinalize}
+          onEdit={onEditContract}
+        />
+      </div>
       <div id={bodyId} hidden={!expanded} className="pb-1.5 pl-8">
         <p className="label-tech px-2 pb-1">
           Run {group.runNumber} · {group.runDate} · accepted {timeFormat.format(group.acceptedAt)} ·{" "}
@@ -62,7 +99,12 @@ function ContractSection({ group, expanded, onToggle }: { group: ContractGroup; 
         </p>
         <ol className="divide-y divide-line/70 border-t border-line/70">
           {group.objectives.map((objective) => (
-            <ObjectiveLine key={objective.key} objective={objective} />
+            <ObjectiveLine
+              key={objective.key}
+              objective={objective}
+              contractRef={group.contractRef}
+              onToggleReminder={onToggleReminder}
+            />
           ))}
         </ol>
       </div>
@@ -70,7 +112,15 @@ function ContractSection({ group, expanded, onToggle }: { group: ContractGroup; 
   );
 }
 
-function ObjectiveLine({ objective }: { objective: ObjectiveRow }) {
+function ObjectiveLine({
+  objective,
+  contractRef,
+  onToggleReminder,
+}: {
+  objective: ObjectiveRow;
+  contractRef: string;
+  onToggleReminder: ToggleReminder;
+}) {
   const box = boxInfo(objective.boxGroups, objective.maxBoxSizeScuMilli);
   return (
     <li className={`${LINE} px-2 py-1.5 text-sm`}>
@@ -85,8 +135,20 @@ function ObjectiveLine({ objective }: { objective: ObjectiveRow }) {
           </span>
         )}
       </span>
-      <StopList operation="pickup" stops={objective.pickups} requirementScuMilli={objective.totalScuMilli} />
-      <StopList operation="delivery" stops={objective.deliveries} requirementScuMilli={objective.totalScuMilli} />
+      <StopList
+        operation="pickup"
+        stops={objective.pickups}
+        requirementScuMilli={objective.totalScuMilli}
+        context={`${objective.commodityName} for ${contractRef}`}
+        onToggleReminder={onToggleReminder}
+      />
+      <StopList
+        operation="delivery"
+        stops={objective.deliveries}
+        requirementScuMilli={objective.totalScuMilli}
+        context={`${objective.commodityName} for ${contractRef}`}
+        onToggleReminder={onToggleReminder}
+      />
     </li>
   );
 }
@@ -95,31 +157,45 @@ function StopList({
   operation,
   stops,
   requirementScuMilli,
+  context,
+  onToggleReminder,
 }: {
   operation: "pickup" | "delivery";
   stops: StopEntry[];
   requirementScuMilli: number;
+  context: string;
+  onToggleReminder: ToggleReminder;
 }) {
   const meta = OPERATION[operation];
   const Icon = meta.icon;
   return (
     <div className="col-start-2 min-w-0 @min-[720px]:col-start-auto">
       <ul className="flex flex-col">
-        {stops.map((stop, i) => (
-          <li key={stop.stopId} className="flex min-w-0 items-baseline gap-2">
-            <Icon
-              className={["size-3 shrink-0 translate-y-0.5", meta.tone, i === 0 ? "" : "invisible"].join(" ")}
-              aria-hidden="true"
-            />
-            <span className="sr-only">{meta.label}: </span>
-            <span className="min-w-0 flex-1 break-words text-muted">{stop.locationName}</span>
-            {stop.quantity.kind !== "derived" && (
-              <span className="shrink-0 font-mono text-xs">
-                <StopQuantityText quantity={stop.quantity} requirementScuMilli={requirementScuMilli} />
-              </span>
-            )}
-          </li>
-        ))}
+        {stops.map((stop, i) => {
+          const intent = reminderIntent([stop]);
+          const dim = intent.state === "all" ? "opacity-55" : "";
+          return (
+            <li key={stop.stopId} className="flex min-w-0 items-center gap-2">
+              <Icon
+                className={["size-3 shrink-0", meta.tone, i === 0 ? "" : "invisible", dim].join(" ")}
+                aria-hidden="true"
+              />
+              <span className="sr-only">{meta.label}: </span>
+              <span className={["min-w-0 flex-1 break-words text-muted", dim].join(" ")}>{stop.locationName}</span>
+              {stop.quantity.kind !== "derived" && (
+                <span className={["shrink-0 font-mono text-xs", dim].join(" ")}>
+                  <StopQuantityText quantity={stop.quantity} requirementScuMilli={requirementScuMilli} />
+                </span>
+              )}
+              <ReminderCheckbox
+                operation={operation}
+                intent={intent}
+                context={`${context} at ${stop.locationName}`}
+                onActivate={(i) => onToggleReminder(i.stopIds, i.done)}
+              />
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

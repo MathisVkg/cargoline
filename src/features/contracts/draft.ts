@@ -1,6 +1,6 @@
 import { locationKey } from "./grouping.ts";
 import { parseRewardAuec, parseScuMilli } from "./scu.ts";
-import type { NewContractInput, NewStopInput, ValidationIssue } from "./types.ts";
+import type { ContractDetail, NewContractInput, NewStopInput, StopDetail, ValidationIssue } from "./types.ts";
 
 /**
  * Editable form state for a contract. Independent of how it was populated
@@ -77,6 +77,43 @@ export function toInput(draft: ContractDraft): NewContractInput {
       deliveries: stops(r.deliveries),
     })),
   };
+}
+
+/**
+ * Milli-SCU as plain input text the parser accepts: "12", "4.5", "0.125",
+ * "4600" (no thousands separators: a comma would be read as a decimal comma).
+ */
+export function scuToInput(milli: number): string {
+  const whole = Math.trunc(milli / 1000);
+  const fraction = String(milli % 1000).padStart(3, "0").replace(/0+$/, "");
+  return fraction ? `${whole}.${fraction}` : String(whole);
+}
+
+/** Prefills the form from a stored contract (edit mode). Ticks and box groups are not form fields. */
+export function draftFromContract(contract: ContractDetail): ContractDraft {
+  const stops = (list: StopDetail[]): StopDraft[] =>
+    list.map((s) => ({
+      key: newKey(),
+      locationName: s.locationName,
+      quantityScu: s.quantityScuMilli === null ? "" : scuToInput(s.quantityScuMilli),
+    }));
+  return {
+    title: contract.title,
+    rewardAuec: String(contract.rewardAuec),
+    requirements: contract.requirements.map((r) => ({
+      key: newKey(),
+      commodityName: r.commodityName,
+      quantityScu: scuToInput(r.quantityScuMilli),
+      maxBoxSizeScu: r.maxBoxSizeScuMilli === null ? "" : scuToInput(r.maxBoxSizeScuMilli),
+      pickups: stops(r.pickups),
+      deliveries: stops(r.deliveries),
+    })),
+  };
+}
+
+/** True when the draft would send something different from `baseline` (row keys are ignored). */
+export function isDraftDirty(draft: ContractDraft, baseline: ContractDraft): boolean {
+  return JSON.stringify(toInput(draft)) !== JSON.stringify(toInput(baseline));
 }
 
 /* ------------------------------------------------------------------------- */

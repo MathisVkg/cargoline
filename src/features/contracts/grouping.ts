@@ -43,6 +43,8 @@ export function stopQuantity(stop: StopDetail, siblings: readonly StopDetail[], 
 export interface OperationRow {
   /** Stable identity: one row per stored stop. */
   key: string;
+  /** Reminder tick of this stop (UTC ms) or null. Display only. */
+  reminderDoneAt: number | null;
   operation: Operation;
   contractId: number;
   contractRef: string;
@@ -223,6 +225,7 @@ export function groupByLocation(contracts: readonly ContractDetail[]): LocationG
             contractTitle: contract.title,
             requirementId: requirement.id,
             stopId: stop.id,
+            reminderDoneAt: stop.reminderDoneAt ?? null,
             commodityName: requirement.commodityName,
             locationName: stop.locationName,
             quantity: stopQuantity(stop, stops, requirement),
@@ -268,6 +271,7 @@ export interface StopEntry {
   stopId: number;
   locationName: string;
   quantity: StopQuantity;
+  reminderDoneAt: number | null;
 }
 
 export interface ObjectiveRow {
@@ -300,6 +304,7 @@ const entries = (stops: StopDetail[], requirement: RequirementDetail): StopEntry
     stopId: stop.id,
     locationName: stop.locationName,
     quantity: stopQuantity(stop, stops, requirement),
+    reminderDoneAt: stop.reminderDoneAt ?? null,
   }));
 
 /** One group per contract, newest accepted first. */

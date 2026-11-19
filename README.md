@@ -18,7 +18,9 @@ page, grouped by location or by contract. Everything else is still a placeholder
 | Contracts: manual Add Contract | Implemented |
 | Contracts: By Location / By Contract views (choice is remembered) | Implemented |
 | Contracts: searchable location and commodity fields (bundled lists + your own entries) | Implemented |
-| Contracts: pickup/turn-in tracking, editing, completion, abandonment, OCR | Not implemented |
+| Contracts: edit, complete and abandon active contracts (single or all) | Implemented |
+| Contracts: optional Pick Up / Turn In reminder ticks (display only) | Implemented |
+| Contracts: History page, OCR capture | Not implemented |
 | Cargo summary and visualisation | Not implemented. Layout placeholder only |
 | History, runs, statistics | Not implemented. Empty state only |
 | Settings | Placeholder, controls disabled. Version is read from the app |

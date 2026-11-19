@@ -101,6 +101,8 @@ pub struct ContractDetail {
     pub status: ContractStatus,
     pub source: ContractSource,
     pub accepted_at: i64,
+    /// UTC ms when completed or abandoned; None while active.
+    pub finished_at: Option<i64>,
     /// Sum of requirement quantities only (stops are never added).
     pub total_scu_milli: i64,
     pub requirements: Vec<RequirementDetail>,
@@ -141,4 +143,6 @@ pub struct StopDetail {
     pub id: i64,
     pub location_name: String,
     pub quantity_scu_milli: Option<i64>,
+    /// Optional Pick Up / Turn In reminder: UTC ms when ticked, None if not.
+    pub reminder_done_at: Option<i64>,
 }

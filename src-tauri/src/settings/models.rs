@@ -41,6 +41,8 @@ pub struct AppSettings {
     pub capture_source: CaptureSource,
     /// Delay before capture, in milliseconds (multiple of 100, at most 5000).
     pub capture_delay_ms: u32,
+    /// Capture a screenshot (after the delay) when the Add Contract form opens. On by default.
+    pub capture_on_add_contract: bool,
     /// Focused-app capture shortcut, e.g. `"Ctrl+Shift+C"`. None = not configured.
     pub capture_shortcut: Option<String>,
     /// Capture automatically when Game.log reports an accepted contract.
@@ -60,6 +62,7 @@ impl Default for AppSettings {
             game_log_path: None,
             capture_source: CaptureSource::StarCitizenWindow,
             capture_delay_ms: 1_000,
+            capture_on_add_contract: true,
             capture_shortcut: None,
             auto_capture_on_accept: false,
             selected_ship_id: None,

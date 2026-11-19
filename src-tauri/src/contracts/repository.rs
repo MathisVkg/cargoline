@@ -16,6 +16,19 @@ pub fn create_contract(
     accepted: &AcceptanceTime,
     source: ContractSource,
 ) -> rusqlite::Result<ContractDetail> {
+    create_contract_with_capture(conn, contract, accepted, source, None)
+}
+
+/// Same as [`create_contract`], and links the form's unsaved screenshot (if any) to the
+/// new contract in the same transaction. A capture that is gone (expired, already
+/// linked) is ignored: the contract never depends on its screenshot.
+pub fn create_contract_with_capture(
+    conn: &mut Connection,
+    contract: &ValidContract,
+    accepted: &AcceptanceTime,
+    source: ContractSource,
+    capture_id: Option<i64>,
+) -> rusqlite::Result<ContractDetail> {
     // IMMEDIATE takes the write lock up front, so concurrent creations on the
     // same date cannot both decide to create the run.
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -35,50 +48,21 @@ pub fn create_contract(
     ])?;
     let contract_id = tx.last_insert_rowid();
 
-    let mut insert_requirement = tx.prepare_cached(
-        "INSERT INTO cargo_requirements (contract_id, commodity_name, quantity_scu_milli, max_box_size_scu_milli, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
-    )?;
-    let mut insert_stop = tx.prepare_cached(
-        "INSERT INTO cargo_stops (requirement_id, operation, location_name, quantity_scu_milli, sort_order)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
-    )?;
-    for req in &contract.requirements {
-        insert_requirement.execute(params![
-            contract_id,
-            req.commodity_name,
-            req.quantity_scu_milli,
-            req.max_box_size_scu_milli,
-            accepted.utc_ms
-        ])?;
-        let requirement_id = tx.last_insert_rowid();
-        for (operation, stops) in [
-            (CargoOperation::Pickup, &req.pickups),
-            (CargoOperation::Delivery, &req.deliveries),
-        ] {
-            for (order, stop) in stops.iter().enumerate() {
-                // Reuse the catalog spelling, or add the new name, in this
-                // same transaction (rolled back if the save fails).
-                let location_name =
-                    crate::locations::resolve_or_insert(&tx, &stop.location_name, accepted.utc_ms)?;
-                insert_stop.execute(params![
-                    requirement_id,
-                    operation,
-                    location_name,
-                    stop.quantity_scu_milli,
-                    order as i64
-                ])?;
-            }
-        }
+    insert_cargo(&tx, contract_id, &contract.requirements, accepted.utc_ms)?;
+    if let Some(capture_id) = capture_id {
+        crate::capture::storage::link(&tx, capture_id, contract_id)?;
     }
-    drop(insert_requirement);
-    drop(insert_stop);
 
     let detail = load_contracts(&tx, Some(contract_id))?
         .pop()
         .ok_or(rusqlite::Error::QueryReturnedNoRows)?;
     tx.commit()?;
     Ok(detail)
+}
+
+/// One contract (any status) with nested cargo.
+pub fn load_contract(conn: &Connection, id: i64) -> rusqlite::Result<Option<ContractDetail>> {
+    Ok(load_contracts(conn, Some(id))?.pop())
 }
 
 /// All active contracts, newest first, with nested cargo.
@@ -114,7 +98,7 @@ fn load_contracts(conn: &Connection, only: Option<i64>) -> rusqlite::Result<Vec<
 
     let mut contracts: Vec<ContractDetail> = conn
         .prepare_cached(&format!(
-            "SELECT c.id, r.id, r.run_number, r.run_date, c.title, c.reward_auec, c.status, c.source, c.accepted_at
+            "SELECT c.id, r.id, r.run_number, r.run_date, c.title, c.reward_auec, c.status, c.source, c.accepted_at, c.finished_at
              FROM contracts c JOIN runs r ON r.id = c.run_id
              WHERE {filter}
              ORDER BY c.accepted_at DESC, c.id DESC"
@@ -128,6 +112,7 @@ fn load_contracts(conn: &Connection, only: Option<i64>) -> rusqlite::Result<Vec<
                 status: row.get(6)?,
                 source: row.get(7)?,
                 accepted_at: row.get(8)?,
+                finished_at: row.get(9)?,
                 total_scu_milli: 0,
                 requirements: Vec::new(),
             })
@@ -170,7 +155,7 @@ fn load_contracts(conn: &Connection, only: Option<i64>) -> rusqlite::Result<Vec<
     }
 
     let mut stmt = conn.prepare_cached(&format!(
-        "SELECT s.id, s.requirement_id, s.operation, s.location_name, s.quantity_scu_milli
+        "SELECT s.id, s.requirement_id, s.operation, s.location_name, s.quantity_scu_milli, s.reminder_done_at
          FROM cargo_stops s
          JOIN cargo_requirements q ON q.id = s.requirement_id
          JOIN contracts c ON c.id = q.contract_id
@@ -188,6 +173,7 @@ fn load_contracts(conn: &Connection, only: Option<i64>) -> rusqlite::Result<Vec<
             id: row.get(0)?,
             location_name: row.get(3)?,
             quantity_scu_milli: row.get(4)?,
+            reminder_done_at: row.get(5)?,
         };
         let requirement = &mut contracts[ci].requirements[ri];
         match operation {
@@ -219,4 +205,75 @@ fn load_contracts(conn: &Connection, only: Option<i64>) -> rusqlite::Result<Vec<
             });
     }
     Ok(contracts)
+}
+
+/** Newly inserted cargo rows, with the keys used to restore kept data on edit. */
+pub(crate) struct InsertedRequirement {
+    pub id: i64,
+    pub commodity_key: String,
+    pub quantity_scu_milli: i64,
+    pub max_box_size_scu_milli: Option<i64>,
+    /// (stop id, operation, normalized location key)
+    pub stops: Vec<(i64, CargoOperation, String)>,
+}
+
+/// Inserts the requirements and stops of a validated contract. Locations go
+/// through the catalog (reused or added) inside the caller's transaction.
+pub(crate) fn insert_cargo(
+    tx: &Connection,
+    contract_id: i64,
+    requirements: &[ValidRequirement],
+    now_ms: i64,
+) -> rusqlite::Result<Vec<InsertedRequirement>> {
+    let mut insert_requirement = tx.prepare_cached(
+        "INSERT INTO cargo_requirements (contract_id, commodity_name, quantity_scu_milli, max_box_size_scu_milli, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+    )?;
+    let mut insert_stop = tx.prepare_cached(
+        "INSERT INTO cargo_stops (requirement_id, operation, location_name, quantity_scu_milli, sort_order)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+    )?;
+    let mut inserted = Vec::with_capacity(requirements.len());
+    for req in requirements {
+        insert_requirement.execute(params![
+            contract_id,
+            req.commodity_name,
+            req.quantity_scu_milli,
+            req.max_box_size_scu_milli,
+            now_ms
+        ])?;
+        let requirement_id = tx.last_insert_rowid();
+        let mut stops = Vec::new();
+        for (operation, list) in [
+            (CargoOperation::Pickup, &req.pickups),
+            (CargoOperation::Delivery, &req.deliveries),
+        ] {
+            for (order, stop) in list.iter().enumerate() {
+                // Reuse the catalog spelling, or add the new name, in this
+                // same transaction (rolled back if the save fails).
+                let location_name =
+                    crate::locations::resolve_or_insert(tx, &stop.location_name, now_ms)?;
+                insert_stop.execute(params![
+                    requirement_id,
+                    operation,
+                    location_name,
+                    stop.quantity_scu_milli,
+                    order as i64
+                ])?;
+                stops.push((
+                    tx.last_insert_rowid(),
+                    operation,
+                    crate::locations::normalize_key(&location_name),
+                ));
+            }
+        }
+        inserted.push(InsertedRequirement {
+            id: requirement_id,
+            commodity_key: crate::locations::normalize_key(&req.commodity_name),
+            quantity_scu_milli: req.quantity_scu_milli,
+            max_box_size_scu_milli: req.max_box_size_scu_milli,
+            stops,
+        });
+    }
+    Ok(inserted)
 }

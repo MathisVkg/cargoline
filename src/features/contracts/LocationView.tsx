@@ -1,13 +1,18 @@
 import { useId } from "react";
-import { ChevronRight, Square } from "lucide-react";
-import { BoxText, GroupHeader, OPERATION, OperationTag, StopQuantityText, plural } from "./display";
+import { ChevronRight } from "lucide-react";
+import { BoxText, GroupHeader, OPERATION, ReminderBadge, ReminderCheckbox, StopQuantityText, plural } from "./display";
 import type { LocationGroup, ManifestEntry, OperationRow, OperationTotal } from "./grouping";
+import { ContractActionsMenu, type RequestEdit, type RequestFinalize, type ToggleReminder } from "./ContractActionsMenu";
+import { reminderIntent, type ReminderIntent } from "./reminders";
 import { formatScu } from "./scu";
 
 interface LocationViewProps {
   groups: LocationGroup[];
   isExpanded: (key: string) => boolean;
   onToggle: (key: string) => void;
+  onRequestFinalize: RequestFinalize;
+  onEditContract: RequestEdit;
+  onToggleReminder: ToggleReminder;
 }
 
 /**
@@ -15,11 +20,19 @@ interface LocationViewProps {
  * first), one thin-separated line per cargo operation. Secondary details
  * move to a second line when the content area is narrow (container query).
  */
-export function LocationView({ groups, isExpanded, onToggle }: LocationViewProps) {
+export function LocationView({ groups, isExpanded, onToggle, onRequestFinalize, onEditContract, onToggleReminder }: LocationViewProps) {
   return (
     <div className="@container flex flex-col gap-3" role="list" aria-label="Cargo operations by location">
       {groups.map((group) => (
-        <LocationSection key={group.key} group={group} isExpanded={isExpanded} onToggle={onToggle} />
+        <LocationSection
+          key={group.key}
+          group={group}
+          isExpanded={isExpanded}
+          onToggle={onToggle}
+          onRequestFinalize={onRequestFinalize}
+          onEditContract={onEditContract}
+          onToggleReminder={onToggleReminder}
+        />
       ))}
     </div>
   );
@@ -28,17 +41,23 @@ export function LocationView({ groups, isExpanded, onToggle }: LocationViewProps
 // SCU | operation | commodity | action  (+ second line: route · contract · boxes)
 // wide: SCU | operation | commodity | route | contract | boxes | action
 const LINE =
-  "grid items-center gap-x-3 grid-cols-[4.25rem_5rem_minmax(0,1fr)_1.75rem] " +
-  "@min-[720px]:grid-cols-[4.25rem_5rem_minmax(0,0.9fr)_minmax(0,1.3fr)_3rem_6.5rem_1.75rem]";
+  "grid items-center gap-x-3 grid-cols-[4.25rem_6.25rem_minmax(0,1fr)_1.75rem] " +
+  "@min-[720px]:grid-cols-[4.25rem_6.25rem_minmax(0,0.9fr)_minmax(0,1.3fr)_3rem_6.5rem_1.75rem]";
 
 function LocationSection({
   group,
   isExpanded,
   onToggle,
+  onRequestFinalize,
+  onEditContract,
+  onToggleReminder,
 }: {
   group: LocationGroup;
   isExpanded: (key: string) => boolean;
   onToggle: (key: string) => void;
+  onRequestFinalize: RequestFinalize;
+  onEditContract: RequestEdit;
+  onToggleReminder: ToggleReminder;
 }) {
   const bodyId = useId();
   const expanded = isExpanded(group.key);
@@ -76,6 +95,9 @@ function LocationSection({
             entry={entry}
             expanded={isExpanded(entry.key)}
             onToggle={() => onToggle(entry.key)}
+            onRequestFinalize={onRequestFinalize}
+            onEditContract={onEditContract}
+            onToggleReminder={onToggleReminder}
           />
         ))}
       </ul>
@@ -100,19 +122,38 @@ function TotalBadge({ operation, total }: { operation: "pickup" | "delivery"; to
   );
 }
 
-function ManifestLine({ entry, expanded, onToggle }: { entry: ManifestEntry; expanded: boolean; onToggle: () => void }) {
+function ManifestLine({
+  entry,
+  expanded,
+  onToggle,
+  onRequestFinalize,
+  onEditContract,
+  onToggleReminder,
+}: {
+  entry: ManifestEntry;
+  expanded: boolean;
+  onToggle: () => void;
+  onRequestFinalize: RequestFinalize;
+  onEditContract: RequestEdit;
+  onToggleReminder: ToggleReminder;
+}) {
   const meta = OPERATION[entry.operation];
   const combined = entry.parts.length > 1;
   const single = entry.parts[0];
   const detailsId = useId();
+  // One intent for the badge and the checkbox: a combined line toggles all of its stops.
+  const intent = reminderIntent(entry.parts);
+  const activate = (i: ReminderIntent) => onToggleReminder(i.stopIds, i.done);
+  const context = `${entry.commodityName} for ${entry.contractRef}`;
+  const dim = intent.state === "all" ? "opacity-55" : "";
   return (
     <li className="min-w-0">
       <div className={`${LINE} px-2 py-1 text-sm`}>
-        <span className={["text-right font-mono whitespace-nowrap", entry.quantity.kind === "unknown" ? "" : meta.tone].join(" ")}>
+        <span className={["text-right font-mono whitespace-nowrap", entry.quantity.kind === "unknown" ? "" : meta.tone, dim].join(" ")}>
           <QuantityCell entry={entry} />
         </span>
-        <OperationTag operation={entry.operation} />
-        <span className="flex min-w-0 items-center gap-1.5">
+        <ReminderBadge operation={entry.operation} intent={intent} onActivate={activate} context={context} />
+        <span className={["flex min-w-0 items-center gap-1.5", dim].join(" ")}>
           <span className="min-w-0 truncate text-fg" title={entry.commodityName}>
             {entry.commodityName}
           </span>
@@ -131,23 +172,21 @@ function ManifestLine({ entry, expanded, onToggle }: { entry: ManifestEntry; exp
           )}
         </span>
 
-        <button
-          type="button"
-          disabled
-          aria-label={`${meta.action} ${entry.commodityName} for ${entry.contractRef}: not available yet`}
-          title={`${meta.action}: not available yet`}
-          className="grid size-7 place-items-center justify-self-end rounded-sm text-dim/60 disabled:cursor-not-allowed @min-[720px]:order-last"
-        >
-          <Square className="size-4" aria-hidden="true" />
-        </button>
+        <span className="justify-self-end @min-[720px]:order-last">
+          <ReminderCheckbox operation={entry.operation} intent={intent} onActivate={activate} context={context} />
+        </span>
 
         {/* Second line when narrow; own columns when wide. */}
-        <span className="col-span-3 col-start-2 flex min-w-0 flex-wrap items-center gap-x-3 text-xs text-dim @min-[720px]:contents">
+        <span className={["col-span-3 col-start-2 flex min-w-0 flex-wrap items-center gap-x-3 text-xs text-dim @min-[720px]:contents", dim].join(" ")}>
           <Route operation={entry.operation} locations={entry.oppositeLocations} />
-          <span className="font-mono text-muted" title={entry.contractTitle}>
-            {entry.contractRef}
-            <span className="sr-only"> {entry.contractTitle}</span>
-          </span>
+          <ContractActionsMenu
+            variant="chip"
+            contractId={entry.contractId}
+            contractRef={entry.contractRef}
+            title={entry.contractTitle}
+            onRequest={onRequestFinalize}
+            onEdit={onEditContract}
+          />
           <span className="min-w-0 truncate font-mono text-xs">
             {combined ? (
               <span className="text-dim" title="Box information is listed per objective">

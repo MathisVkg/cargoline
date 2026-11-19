@@ -3,6 +3,7 @@
 //! The Rust side owns business logic, local IO and native capabilities,
 //! including the SQLite database. The frontend never accesses SQL directly.
 
+pub mod capture;
 pub mod commands;
 pub mod contracts;
 pub mod database;
@@ -18,8 +19,17 @@ use tauri::{Manager, Runtime};
 pub fn run() {
     tauri::Builder::default()
         .manage(DatabaseState::default())
+        .manage(capture::CaptureState::default())
+        .register_asynchronous_uri_scheme_protocol("capture", |ctx, request, responder| {
+            let app = ctx.app_handle().clone();
+            let path = request.uri().path().to_string();
+            std::thread::spawn(move || {
+                responder.respond(capture::service::serve_capture(&app, &path))
+            });
+        })
         .setup(|app| {
             start_database(app.handle());
+            capture::service::start_cleanup(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -30,7 +40,16 @@ pub fn run() {
             commands::list_locations,
             commands::list_used_commodities,
             commands::list_reference_locations,
-            commands::list_reference_commodities
+            commands::list_reference_commodities,
+            commands::complete_contract,
+            commands::abandon_contract,
+            commands::finalize_active_contracts,
+            commands::update_contract,
+            commands::set_stop_reminder,
+            commands::get_settings,
+            commands::update_capture_settings,
+            commands::capture_screenshot,
+            commands::discard_capture
         ])
         .run(tauri::generate_context!())
         .expect("error while running Cargo Line");

@@ -37,6 +37,8 @@ export interface ContractDetail {
   source: ContractSource;
   /** UTC milliseconds since the Unix epoch. */
   acceptedAt: number;
+  /** UTC ms when completed or abandoned; null while active. */
+  finishedAt: number | null;
   /** Sum of requirement quantities only. */
   totalScuMilli: number;
   requirements: RequirementDetail[];
@@ -72,6 +74,8 @@ export interface StopDetail {
   id: number;
   locationName: string;
   quantityScuMilli: number | null;
+  /** Optional Pick Up / Turn In reminder: UTC ms when ticked, null if not. */
+  reminderDoneAt: number | null;
 }
 
 export interface ValidationIssue {
@@ -85,7 +89,21 @@ export type CommandError =
   | { kind: "validation"; issues: ValidationIssue[] }
   | { kind: "unavailable"; message: string }
   | { kind: "database"; message: string }
-  | { kind: "internal"; message: string };
+  | { kind: "internal"; message: string }
+  /** The contract does not exist. */
+  | { kind: "notFound"; message: string; id: number }
+  /** The contract is already completed or abandoned. */
+  | { kind: "notActive"; message: string; id: number; status: string }
+  /** Bulk action on an out-of-date list; nothing was changed. */
+  | { kind: "conflict"; message: string; notFound: number[]; notActive: number[] }
+  /** A screenshot could not be taken; manual entry is unaffected. */
+  | { kind: "capture"; reason: CaptureFailure; message: string };
+
+/** Why a capture failed (typed by the backend). */
+export type CaptureFailure = "windowNotFound" | "minimized" | "busy" | "timeout" | "unsupported" | "failed";
+
+/** Terminal statuses accepted by finalize_active_contracts. */
+export type FinalStatus = "completed" | "abandoned";
 
 /** Entry of the user's location catalog (names typed in saved contracts). */
 export interface LocationEntry {
