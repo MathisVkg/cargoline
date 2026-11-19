@@ -86,7 +86,7 @@ src-tauri/      Rust backend (Tauri 2)
 
 ## Local data
 
-The database is `%APPDATA%\io.github.mathisvkg.cargoline\sc-cargo-app.sqlite3`. It is created on first launch
+The database is `%APPDATA%\io.github.mathisvkg.sccargoapp\sc-cargo-app.sqlite3`. It is created on first launch
 and is never stored in the repository.
 
 - **Engine:** SQLite, bundled through `rusqlite`. Foreign keys are enforced, the database uses WAL journaling,
@@ -127,9 +127,6 @@ value. Free text is always accepted, and validation and saving are unchanged.
   current form. Duplicates are removed ignoring case and spacing.
 - **Search order:** names that start with the typed text, then names where a word starts with it, then
   names that contain it. At most 50 options are shown.
-- **Migration 0003** (extra catalog columns, an unused `commodities` table, `catalog_metadata` keyed by
-  catalog) was applied on existing development installs during an earlier design. It stays in place,
-  unused, because applied migrations are never removed.
 
 ### Data source and attribution
 

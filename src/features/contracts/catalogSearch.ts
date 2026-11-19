@@ -20,6 +20,8 @@ export interface Suggestion {
   name: string;
   /** Small secondary text, e.g. "microTech · Stanton" or "Metal". */
   detail: string | null;
+  /** Already used by the user (saved location or commodity in a contract): listed first when the search is empty. */
+  used?: boolean;
 }
 
 export type CatalogOption = { kind: "existing"; suggestion: Suggestion } | { kind: "create"; name: string };
@@ -41,29 +43,45 @@ export const fromReferenceCommodity = (c: ReferenceCommodity): Suggestion => ({
   detail: c.group ? humanizeGroup(c.group) : null,
 });
 
-/** Plain names (user catalog, saved contracts, the current form). */
-export const fromNames = (names: readonly string[]): Suggestion[] =>
-  names.map((name) => ({ name: normalizeName(name), detail: null })).filter((s) => s.name !== "");
+/** Plain names (saved contracts, the current form). `used` marks names the user already saved. */
+export const fromNames = (names: readonly string[], used = false): Suggestion[] =>
+  names.map((name) => ({ name: normalizeName(name), detail: null, used })).filter((s) => s.name !== "");
 
-export const fromUserLocations = (entries: readonly LocationEntry[]): Suggestion[] => fromNames(entries.map((e) => e.name));
+/** The user's saved location catalog: always marked as used. */
+export const fromUserLocations = (entries: readonly LocationEntry[]): Suggestion[] =>
+  fromNames(
+    entries.map((e) => e.name),
+    true,
+  );
 
 /**
  * Merges suggestion lists, de-duplicated case- and whitespace-insensitively.
  * Earlier lists win, so pass the bundled list first: its spelling and detail
- * are shown. Stored data is never changed by this.
+ * are shown. A duplicate's `used` flag is kept, so a bundled place the user
+ * has saved still counts as used. Stored data is never changed by this.
  */
 export function mergeSuggestions(...lists: readonly (readonly Suggestion[])[]): Suggestion[] {
   const byKey = new Map<string, Suggestion>();
   for (const list of lists) {
     for (const s of list) {
       const key = nameKey(s.name);
-      if (key && !byKey.has(key)) byKey.set(key, s);
+      if (!key) continue;
+      const existing = byKey.get(key);
+      if (!existing) byKey.set(key, s);
+      else if (s.used && !existing.used) byKey.set(key, { ...existing, used: true });
     }
   }
   return [...byKey.values()];
 }
 
-const alpha = (a: string, b: string) => a.localeCompare(b, "en", { sensitivity: "base" }) || (a < b ? -1 : a > b ? 1 : 0);
+/** Sort key ignoring leading punctuation and quotes: `"The Orphanage"` sorts under T. Display is unchanged. */
+export const sortKey = (name: string): string => name.replace(/^[^\p{L}\p{N}]+/u, "");
+
+/** Alphabetical, case-insensitive, ignoring leading punctuation; ties broken on the raw name. */
+export const compareNames = (a: string, b: string): number =>
+  sortKey(a).localeCompare(sortKey(b), "en", { sensitivity: "base" }) || (a < b ? -1 : a > b ? 1 : 0);
+
+const alpha = compareNames;
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
@@ -82,12 +100,21 @@ export function matchTier(name: string, query: string): 0 | 1 | 2 | 3 | null {
   return null;
 }
 
-/** Ranked suggestions: by tier, then alphabetical. At most `limit` results. */
+/**
+ * Ranked suggestions, at most `limit`.
+ * - Empty search: entries the user already used first, then the rest, each alphabetical.
+ * - Typed search: by match tier, then alphabetical (the `used` flag plays no part).
+ */
 export function rankSuggestions(suggestions: readonly Suggestion[], query: string, limit = MAX_OPTIONS): Suggestion[] {
+  const empty = nameKey(query) === "";
   return suggestions
     .map((s) => ({ s, tier: matchTier(s.name, query) }))
     .filter((x): x is { s: Suggestion; tier: 0 | 1 | 2 | 3 } => x.tier !== null)
-    .sort((a, b) => a.tier - b.tier || alpha(a.s.name, b.s.name))
+    .sort((a, b) =>
+      empty
+        ? Number(Boolean(b.s.used)) - Number(Boolean(a.s.used)) || alpha(a.s.name, b.s.name)
+        : a.tier - b.tier || alpha(a.s.name, b.s.name),
+    )
     .slice(0, limit)
     .map((x) => x.s);
 }

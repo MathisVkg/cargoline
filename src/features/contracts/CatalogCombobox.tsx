@@ -159,7 +159,7 @@ export function CatalogCombobox({
           onBlur={close}
           onKeyDown={onKeyDown}
           className={[
-            "h-8 w-full min-w-0 rounded-sm border bg-raised pr-7 text-sm text-fg placeholder:text-dim",
+            "h-8 w-full min-w-0 rounded-sm border bg-raised pr-7 text-sm text-fg placeholder:text-placeholder",
             Icon ? "pl-7" : "pl-2",
             "transition-colors duration-150 focus-visible:outline-offset-0 disabled:opacity-60",
             error ? "border-danger" : "border-line hover:border-line-strong",

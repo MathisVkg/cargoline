@@ -9,7 +9,7 @@
   --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
   --font-mono: "Cascadia Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
 
-  --color-base: #0a0c0f;
+  --color-canvas: #0a0c0f;
   --color-surface: #101318;
   --color-raised: #151920;
   --color-line: #222831;
@@ -17,6 +17,8 @@
   --color-fg: #e4e7eb;
   --color-muted: #9aa3b1;
   --color-dim: #7a8392;
+  /* Input placeholders: clearly dimmer than typed text and labels. */
+  --color-placeholder: #545c68;
   --color-accent: #e8a33d;
   --color-accent-soft: #e8a33d1f;
   --color-pickup: #6cc18a;
@@ -34,7 +36,7 @@
 
   body {
     margin: 0;
-    background-color: var(--color-base);
+    background-color: var(--color-canvas);
     color: var(--color-fg);
     font-family: var(--font-sans);
     font-size: 14px;

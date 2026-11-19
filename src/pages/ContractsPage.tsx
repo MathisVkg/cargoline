@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ChevronsDownUp, ChevronsUpDown, ClipboardList, LoaderCircle, Plus, RotateCw } from "lucide-react";
-import { EmptyState, PageContainer, PageHeader, Panel, PanelHeader, Tag } from "../components/ui";
+import { EmptyState, PageContainer, PageHeader, Panel } from "../components/ui";
 import { AddContractModal } from "../features/contracts/AddContractModal";
+import { ContractsSummary } from "../features/contracts/ContractsSummary";
 import { ContractView } from "../features/contracts/ContractView";
 import { LocationView } from "../features/contracts/LocationView";
 import {
@@ -20,6 +21,7 @@ import {
   toggleExpanded,
   type ExpansionState,
 } from "../features/contracts/grouping";
+import { summaryForList } from "../features/contracts/summary";
 import type { CommandError, ContractDetail, ContractGrouping } from "../features/contracts/types";
 
 const MODES: { id: ContractGrouping; label: string }[] = [
@@ -30,13 +32,8 @@ const MODES: { id: ContractGrouping; label: string }[] = [
 /** Location groups start open (operational view); contract groups start closed (review view). */
 const DEFAULT_EXPANDED: Record<ContractGrouping, boolean> = { by_location: true, by_contract: false };
 
-const PLANNED_FLOW = [
-  { step: "Delay", text: "Wait for the configured capture delay." },
-  { step: "Capture", text: "Screenshot the Star Citizen window or display." },
-  { step: "Recognise", text: "Read contract details locally with OCR." },
-  { step: "Review", text: "Check and edit every recognised field." },
-  { step: "Confirm", text: "Save only after explicit confirmation." },
-] as const;
+/** Selected ship capacity (whole SCU). No ship catalog yet, so always unknown. */
+const SELECTED_SHIP_CAPACITY_SCU: number | null = null;
 
 type ListState =
   | { status: "loading" }
@@ -104,6 +101,8 @@ export function ContractsPage() {
 
   const count = contracts.length;
   const ready = list.status === "ready" && modeLoaded;
+  // Recomputed on every list (re)load; null while loading or on error.
+  const summary = useMemo(() => summaryForList(list), [list]);
 
   return (
     <PageContainer>
@@ -115,13 +114,15 @@ export function ContractsPage() {
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="inline-flex h-9 items-center gap-2 rounded-sm bg-accent px-3 text-sm font-semibold text-(color:--color-base) transition-[filter] duration-150 hover:brightness-110"
+            className="inline-flex h-9 items-center gap-2 rounded-sm bg-accent px-3 text-sm font-semibold text-(color:--color-canvas) transition-[filter] duration-150 hover:brightness-110"
           >
             <Plus className="size-4 shrink-0" aria-hidden="true" />
             <span className="whitespace-nowrap">Add Contract</span>
           </button>
         }
       />
+
+      <ContractsSummary summary={summary} capacityScu={SELECTED_SHIP_CAPACITY_SCU} />
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -152,10 +153,11 @@ export function ContractsPage() {
           )}
         </div>
         <div className="flex flex-col items-end">
-          <span className="label-tech" aria-live="polite">
-            {count} active contract{count === 1 ? "" : "s"}
-            {ready && mode === "by_location" && count > 0 && ` · ${locationGroups.length} locations`}
-          </span>
+          {ready && mode === "by_location" && count > 0 && (
+            <span className="label-tech">
+              {locationGroups.length} location{locationGroups.length === 1 ? "" : "s"}
+            </span>
+          )}
           {modeSaveFailed && (
             <span role="status" className="text-xs text-danger">
               The view preference could not be saved.
@@ -212,20 +214,6 @@ export function ContractsPage() {
           “?” marks a location whose share of the cargo is unknown. Pick up and turn in tracking is not available yet.
         </p>
       )}
-
-      <Panel className="mt-6">
-        <PanelHeader title="Planned screenshot capture" meta={<Tag>Preview</Tag>} />
-        <ol className="grid gap-px bg-line sm:grid-cols-5">
-          {PLANNED_FLOW.map(({ step, text }, i) => (
-            <li key={step} className="min-w-0 bg-surface px-4 py-3">
-              <p className="label-tech">
-                <span className="text-accent">{String(i + 1).padStart(2, "0")}</span> {step}
-              </p>
-              <p className="mt-1 text-sm text-muted break-words">{text}</p>
-            </li>
-          ))}
-        </ol>
-      </Panel>
 
       {adding && <AddContractModal onClose={() => setAdding(false)} onSaved={handleSaved} />}
     </PageContainer>

@@ -1,1 +1,252 @@
-{"source":"Star Citizen Wiki API (api.star-citizen.wiki)","attribution":"placeholder","game_version":"4.10.3-LIVE.13165946","generated_at":"2026-11-19","items":[]}
+{
+  "source": "Star Citizen Wiki API (api.star-citizen.wiki)",
+  "attribution": "Data from api.star-citizen.wiki. Unofficial; not affiliated with Cloud Imperium Games.",
+  "game_version": "4.10.3-LIVE.13165946",
+  "generated_at": "2026-11-19",
+  "items": [
+    {
+      "name": "Agricultural Supplies",
+      "group": "Organic"
+    },
+    {
+      "name": "Aluminum",
+      "group": "Metal"
+    },
+    {
+      "name": "Aluminum (Ore)",
+      "group": "Metal"
+    },
+    {
+      "name": "Ammonia",
+      "group": "Gas"
+    },
+    {
+      "name": "Aphorite",
+      "group": "Mineral"
+    },
+    {
+      "name": "Argon",
+      "group": "Gas"
+    },
+    {
+      "name": "Atlasium",
+      "group": "Metal"
+    },
+    {
+      "name": "Audio-Visual Equipment",
+      "group": "ProcessedGoods"
+    },
+    {
+      "name": "Carbon",
+      "group": "Nonmetal"
+    },
+    {
+      "name": "Cobalt",
+      "group": "Metal"
+    },
+    {
+      "name": "Construction Materials",
+      "group": "ProcessedGoods"
+    },
+    {
+      "name": "Copper",
+      "group": "Metal"
+    },
+    {
+      "name": "Copper (Ore)",
+      "group": "Metal"
+    },
+    {
+      "name": "Corundum",
+      "group": "Mineral"
+    },
+    {
+      "name": "Corundum (Raw)",
+      "group": "Mineral"
+    },
+    {
+      "name": "DCSR2",
+      "group": "Organic"
+    },
+    {
+      "name": "Detatrine",
+      "group": "ProcessedGoods"
+    },
+    {
+      "name": "Diamond",
+      "group": "Mineral"
+    },
+    {
+      "name": "Distilled Spirits",
+      "group": "ProcessedGoods"
+    },
+    {
+      "name": "E'tam",
+      "group": "ProcessedGoods"
+    },
+    {
+      "name": "Fresh Food",
+      "group": "Organic"
+    },
+    {
+      "name": "Gold",
+      "group": "Metal"
+    },
+    {
+      "name": "Golden Medmon",
+      "group": "Organic"
+    },
+    {
+      "name": "Hephaestanite",
+      "group": "Mineral"
+    },
+    {
+      "name": "Hydrogen",
+      "group": "Gas"
+    },
+    {
+      "name": "Hydrogen Fuel",
+      "group": "ProcessedGoods"
+    },
+    {
+      "name": "Iodine",
+      "group": "Nonmetal"
+    },
+    {
+      "name": "Iron",
+      "group": "Metal"
+    },
+    {
+      "name": "Iron (Ore)",
+      "group": "Metal"
+    },
+    {
+      "name": "Laranite",
+      "group": "Mineral"
+    },
+    {
+      "name": "Medical Supplies",
+      "group": "ProcessedGoods"
+    },
+    {
+      "name": "Neon",
+      "group": "ProcessedGoods"
+    },
+    {
+      "name": "Nitrogen",
+      "group": "Gas"
+    },
+    {
+      "name": "Organics",
+      "group": "Organic"
+    },
+    {
+      "name": "Oxygen",
+      "group": "Gas"
+    },
+    {
+      "name": "Party Favors",
+      "group": "ProcessedGoods"
+    },
+    {
+      "name": "Potassium",
+      "group": "Metal"
+    },
+    {
+      "name": "Pressurized Ice",
+      "group": "Mineral"
+    },
+    {
+      "name": "Processed Food",
+      "group": "ProcessedGoods"
+    },
+    {
+      "name": "Quantum Fuel",
+      "group": "ProcessedGoods"
+    },
+    {
+      "name": "Quartz",
+      "group": "Mineral"
+    },
+    {
+      "name": "Quartz (Raw)",
+      "group": "Mineral"
+    },
+    {
+      "name": "Ranta Dung",
+      "group": "Organic"
+    },
+    {
+      "name": "Recycled Material Composite",
+      "group": "ProcessedGoods"
+    },
+    {
+      "name": "Revenant Tree Pollen",
+      "group": "Organic"
+    },
+    {
+      "name": "Scrap",
+      "group": "Waste"
+    },
+    {
+      "name": "Ship Ammunition",
+      "group": "ProcessedGoods"
+    },
+    {
+      "name": "Silicon",
+      "group": "Nonmetal"
+    },
+    {
+      "name": "SLAM",
+      "group": "ProcessedGoods"
+    },
+    {
+      "name": "Souvenirs",
+      "group": "ProcessedGoods"
+    },
+    {
+      "name": "Stims",
+      "group": "ProcessedGoods"
+    },
+    {
+      "name": "Sunset Berries",
+      "group": "Organic"
+    },
+    {
+      "name": "ThermalFoam",
+      "group": "ProcessedGoods"
+    },
+    {
+      "name": "Tin",
+      "group": "Metal"
+    },
+    {
+      "name": "Titanium",
+      "group": "Metal"
+    },
+    {
+      "name": "Titanium (Ore)",
+      "group": "Metal"
+    },
+    {
+      "name": "Tritium",
+      "group": "Gas"
+    },
+    {
+      "name": "Tungsten",
+      "group": "Metal"
+    },
+    {
+      "name": "Tungsten (Ore)",
+      "group": "Metal"
+    },
+    {
+      "name": "Waste",
+      "group": "Waste"
+    },
+    {
+      "name": "WiDoW",
+      "group": "ProcessedGoods"
+    }
+  ]
+}

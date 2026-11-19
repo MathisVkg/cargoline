@@ -124,7 +124,7 @@ export function AddContractModal({ onClose, onSaved, initialDraft }: AddContract
       <form onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
         <header className="flex shrink-0 items-center justify-between gap-4 border-b border-line px-4 py-2.5">
           <div className="min-w-0">
-            <h2 id="add-contract-title" className="text-base font-semibold tracking-tight">
+            <h2 id="add-contract-title" className="text-[15px] font-semibold tracking-tight text-fg">
               Add Contract
             </h2>
             <p id="add-contract-description" className="text-xs break-words text-dim">
@@ -182,7 +182,7 @@ export function AddContractModal({ onClose, onSaved, initialDraft }: AddContract
               <button
                 type="submit"
                 disabled={saving}
-                className="h-9 rounded-sm bg-accent px-4 text-sm font-semibold text-(color:--color-base) transition-[filter] duration-150 hover:brightness-110 disabled:opacity-60"
+                className="h-9 rounded-sm bg-accent px-4 text-sm font-semibold text-(color:--color-canvas) transition-[filter] duration-150 hover:brightness-110 disabled:opacity-60"
               >
                 {saving ? "Saving…" : "Add Contract"}
               </button>

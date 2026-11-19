@@ -1,1 +1,2163 @@
-{"source":"Star Citizen Wiki API (api.star-citizen.wiki)","attribution":"placeholder","game_version":"4.10.3-LIVE.13165946","generated_at":"2026-11-19","items":[]}
+{
+  "source": "Star Citizen Wiki API (api.star-citizen.wiki)",
+  "attribution": "Data from api.star-citizen.wiki. Unofficial; not affiliated with Cloud Imperium Games.",
+  "game_version": "4.10.3-LIVE.13165946",
+  "generated_at": "2026-11-19",
+  "items": [
+    {
+      "name": "\"The Orphanage\"",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Adair's Retreat",
+      "system": "Stanton",
+      "body": "Euterpe"
+    },
+    {
+      "name": "Adir",
+      "system": "Pyro",
+      "body": "Pyro V"
+    },
+    {
+      "name": "ADMN-A",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "ADMN-B",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "ADMN-C",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "ADMN-D",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Ako's Return",
+      "system": "Stanton",
+      "body": "Wala"
+    },
+    {
+      "name": "ARC-L1 Wide Forest Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "ARC-L2 Lively Pathway Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "ARC-L3 Modern Express Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "ARC-L4 Faint Glen Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "ARC-L5 Yellow Core Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "ArcCorp Mining Area 045",
+      "system": "Stanton",
+      "body": "Wala"
+    },
+    {
+      "name": "ArcCorp Mining Area 048",
+      "system": "Stanton",
+      "body": "Wala"
+    },
+    {
+      "name": "ArcCorp Mining Area 056",
+      "system": "Stanton",
+      "body": "Wala"
+    },
+    {
+      "name": "ArcCorp Mining Area 061",
+      "system": "Stanton",
+      "body": "Wala"
+    },
+    {
+      "name": "ArcCorp Mining Area 141",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "ArcCorp Mining Area157",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "ArcCorp Security Post 042",
+      "system": "Stanton",
+      "body": "Lyria"
+    },
+    {
+      "name": "ArcCorp Security Post 066",
+      "system": "Stanton",
+      "body": "Wala"
+    },
+    {
+      "name": "Area18",
+      "system": "Stanton",
+      "body": "ArcCorp"
+    },
+    {
+      "name": "Arid Reach",
+      "system": "Pyro",
+      "body": "Monox"
+    },
+    {
+      "name": "Ashburn Channel Aid Shelter",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "Ashland",
+      "system": "Pyro",
+      "body": "Ignis"
+    },
+    {
+      "name": "Aspire Grand",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Astor's Clearing",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Attritus OLP",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Attritus PAF-I",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Attritus PAF-II",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Attritus PAF-III",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "August Dunlow Spaceport",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Baijini Point",
+      "system": "Stanton",
+      "body": "ArcCorp"
+    },
+    {
+      "name": "Balto's Blind",
+      "system": "Stanton",
+      "body": "Lyria"
+    },
+    {
+      "name": "Barton Flats Aid Shelter",
+      "system": "Stanton",
+      "body": "Aberdeen"
+    },
+    {
+      "name": "Bevic Convention Center",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Blackrock Exchange",
+      "system": "Pyro",
+      "body": "Terminus"
+    },
+    {
+      "name": "Blighter's Run",
+      "system": "Stanton",
+      "body": "Calliope"
+    },
+    {
+      "name": "Bloodshot Ridge",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Bloom",
+      "system": "Pyro",
+      "body": null
+    },
+    {
+      "name": "Boondoggle",
+      "system": "Stanton",
+      "body": "Aberdeen"
+    },
+    {
+      "name": "Bountiful Harvest",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Broken Patch",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Brushwood Platform",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Bud's Growery",
+      "system": "Stanton",
+      "body": "Euterpe"
+    },
+    {
+      "name": "Bueno Ravine",
+      "system": "Pyro",
+      "body": "Bloom"
+    },
+    {
+      "name": "Bullock's Reach",
+      "system": "Pyro",
+      "body": "Terminus"
+    },
+    {
+      "name": "Burnout",
+      "system": "Stanton",
+      "body": "Lyria"
+    },
+    {
+      "name": "BWD-A1",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "BWD-A2",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "BWD-B",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "BWD-C",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "BWD-D",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "BWD-E",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "BWD-F",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "BWD-G",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "BWD-H",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Canard View",
+      "system": "Pyro",
+      "body": "Terminus"
+    },
+    {
+      "name": "Caplan Circuit",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Carver's Ridge",
+      "system": "Pyro",
+      "body": "Bloom"
+    },
+    {
+      "name": "Cat",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Chawla's Beach",
+      "system": "Pyro",
+      "body": "Pyro IV"
+    },
+    {
+      "name": "Checkmate",
+      "system": "Pyro",
+      "body": null
+    },
+    {
+      "name": "Clio Derelict Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Cloudrest Retreat",
+      "system": "Stanton",
+      "body": "Crusader"
+    },
+    {
+      "name": "Comm Array ST1-02",
+      "system": "Stanton",
+      "body": "Ita"
+    },
+    {
+      "name": "Comm Array ST1-13",
+      "system": "Stanton",
+      "body": "Arial"
+    },
+    {
+      "name": "Comm Array ST1-48",
+      "system": "Stanton",
+      "body": "Magda"
+    },
+    {
+      "name": "Comm Array ST1-61",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Comm Array ST1-92",
+      "system": "Stanton",
+      "body": "Aberdeen"
+    },
+    {
+      "name": "Comm Array ST2-28",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "Comm Array ST2-47",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Comm Array ST2-55",
+      "system": "Stanton",
+      "body": "Crusader"
+    },
+    {
+      "name": "Comm Array ST2-76",
+      "system": "Stanton",
+      "body": "Yela"
+    },
+    {
+      "name": "Comm Array ST3-18",
+      "system": "Stanton",
+      "body": "Lyria"
+    },
+    {
+      "name": "Comm Array ST3-35",
+      "system": "Stanton",
+      "body": "Wala"
+    },
+    {
+      "name": "Comm Array ST3-90",
+      "system": "Stanton",
+      "body": "ArcCorp"
+    },
+    {
+      "name": "Comm Array ST4-22",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Comm Array ST4-31",
+      "system": "Stanton",
+      "body": "Calliope"
+    },
+    {
+      "name": "Comm Array ST4-59",
+      "system": "Stanton",
+      "body": "Clio"
+    },
+    {
+      "name": "Comm Array ST4-64",
+      "system": "Stanton",
+      "body": "Euterpe"
+    },
+    {
+      "name": "Consumption",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "Covalex Distribution Center S1DC06",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Covalex Distribution Center S4DC05",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Covalex Station Gundo",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Coven",
+      "system": "Stanton",
+      "body": "Arial"
+    },
+    {
+      "name": "CRU-L1 Ambitious Dream Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "CRU-L4 Shallow Fields Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "CRU-L5 Beautiful Glen Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "Cry-Astro Processing Plant 19-02",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Cry-Astro Processing Plant 34-12",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Cutter's Rig",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Daymar Derelict Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Devlin Scrap & Salvage",
+      "system": "Stanton",
+      "body": "Euterpe"
+    },
+    {
+      "name": "Downlow",
+      "system": "Stanton",
+      "body": "Lyria"
+    },
+    {
+      "name": "Drifters",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Dudley & Daughters at the L4 Lagrange of Pyro VI",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Dunboro",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Dunlow Ridge Aid Shelter",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Dupree Industrial Manufacturing Facility",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Eager Flats Aid Shelter",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Echo Isle",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Empyrean Park",
+      "system": "Stanton",
+      "body": "Crusader"
+    },
+    {
+      "name": "Endgame at the L3 Lagrange of Pyro VI",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Euterpe Derelict Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Everus Harbor",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Fairo",
+      "system": "Pyro",
+      "body": "Pyro V"
+    },
+    {
+      "name": "Fallow Field",
+      "system": "Pyro",
+      "body": "Pyro IV"
+    },
+    {
+      "name": "Farro Data Center I",
+      "system": "Pyro",
+      "body": "Pyro IV"
+    },
+    {
+      "name": "Farro Data Center II",
+      "system": "Pyro",
+      "body": "Pyro IV"
+    },
+    {
+      "name": "Farro Data Center III",
+      "system": "Pyro",
+      "body": "Pyro IV"
+    },
+    {
+      "name": "Farro Data Center IV",
+      "system": "Pyro",
+      "body": "Pyro IV"
+    },
+    {
+      "name": "Farro Data Center IX",
+      "system": "Pyro",
+      "body": "Pyro IV"
+    },
+    {
+      "name": "Farro Data Center V",
+      "system": "Pyro",
+      "body": "Pyro IV"
+    },
+    {
+      "name": "Farro Data Center VI",
+      "system": "Pyro",
+      "body": "Pyro IV"
+    },
+    {
+      "name": "Farro Data Center VII",
+      "system": "Pyro",
+      "body": "Pyro IV"
+    },
+    {
+      "name": "Farro Data Center VIII",
+      "system": "Pyro",
+      "body": "Pyro IV"
+    },
+    {
+      "name": "Farro Data Center X",
+      "system": "Pyro",
+      "body": "Pyro IV"
+    },
+    {
+      "name": "Fetch",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "Finn's Folly",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Flanagan's Ravine Aid Shelter",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "Frigid Knot",
+      "system": "Pyro",
+      "body": "Bloom"
+    },
+    {
+      "name": "Frostbite",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Fuego",
+      "system": "Pyro",
+      "body": "Pyro V"
+    },
+    {
+      "name": "Gallete Farms",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Gaslight",
+      "system": "Pyro",
+      "body": null
+    },
+    {
+      "name": "Ghost Hollow",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Glaciem Ring",
+      "system": "Nyx",
+      "body": null
+    },
+    {
+      "name": "Glaciem Ring Cluster",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Goner's Deal",
+      "system": "Pyro",
+      "body": "Pyro IV"
+    },
+    {
+      "name": "Gonzo",
+      "system": "Stanton",
+      "body": "Magda"
+    },
+    {
+      "name": "Greycat Stanton I Production Complex-B",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Greycat Stanton IV Production Complex-A",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Grim HEX",
+      "system": "Stanton",
+      "body": "Yela"
+    },
+    {
+      "name": "Half Stack",
+      "system": "Stanton",
+      "body": "Yela"
+    },
+    {
+      "name": "Hard Knocks",
+      "system": "Stanton",
+      "body": "Calliope"
+    },
+    {
+      "name": "Harper's Point",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Hartmoore Platform",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Hasbin Hall",
+      "system": "Stanton",
+      "body": "Calliope"
+    },
+    {
+      "name": "HDMS-Anderson",
+      "system": "Stanton",
+      "body": "Aberdeen"
+    },
+    {
+      "name": "HDMS-Bezdek on Arial",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "HDMS-Edmond",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "HDMS-Hadley",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "HDMS-Hahn",
+      "system": "Stanton",
+      "body": "Magda"
+    },
+    {
+      "name": "HDMS-Lathan",
+      "system": "Stanton",
+      "body": "Arial"
+    },
+    {
+      "name": "HDMS-Norgaard",
+      "system": "Stanton",
+      "body": "Aberdeen"
+    },
+    {
+      "name": "HDMS-Oparei",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "HDMS-Perlman",
+      "system": "Stanton",
+      "body": "Magda"
+    },
+    {
+      "name": "HDMS-Pinewood",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "HDMS-Ryder",
+      "system": "Stanton",
+      "body": "Ita"
+    },
+    {
+      "name": "HDMS-Stanhope",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "HDMS-Thedus",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "HDMS-Woodruff",
+      "system": "Stanton",
+      "body": "Ita"
+    },
+    {
+      "name": "HDPC-Cassillo",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "HDPC-Farnesway",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Hela's Regret",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Hickes Research Outpost",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "HMR-A",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "HMR-B",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "HMR-C",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "HMR-D",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "HMR-E",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "HMR-F",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "HMR-G",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "HMR-H",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "HMR-I",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Hospice",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Humboldt Mines",
+      "system": "Stanton",
+      "body": "Lyria"
+    },
+    {
+      "name": "HUR-L1 Green Glade Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "HUR-L2 Faithful Dream Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "HUR-L3 Thundering Express Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "HUR-L4 Melodic Fields Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "HUR-L5 High Course Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "Hurston Derelict Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Ignis",
+      "system": "Pyro",
+      "body": "Pyro V"
+    },
+    {
+      "name": "Ita Derelict Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Jackson's Swap",
+      "system": "Pyro",
+      "body": "Monox"
+    },
+    {
+      "name": "Julep Ravine Aid Shelter",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "Jumptown",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Kabir's Post",
+      "system": "Pyro",
+      "body": "Ignis"
+    },
+    {
+      "name": "Kant's Peak",
+      "system": "Stanton",
+      "body": "Clio"
+    },
+    {
+      "name": "Keeger Belt Cluster",
+      "system": "Nyx",
+      "body": null
+    },
+    {
+      "name": "Keeger Belt Wreck Site",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Kelo Bottom",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Kinder Plots",
+      "system": "Pyro",
+      "body": "Terminus"
+    },
+    {
+      "name": "Klescher Rehabilitation Facilities on Aberdeen",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Kudre Ore",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "L19 Admin Office in Lorville",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "L19 Habs in Lorville",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "L19 Metro Station in Lorville",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Lamina OLP",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Lamina PAF-I",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Lamina PAF-II",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Lamina PAF-III",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Last Day",
+      "system": "Stanton",
+      "body": "Lyria"
+    },
+    {
+      "name": "Last Ditch",
+      "system": "Pyro",
+      "body": "Monox"
+    },
+    {
+      "name": "Last Landings",
+      "system": "Pyro",
+      "body": "Terminus"
+    },
+    {
+      "name": "Lazarus Complex Phoenix-I",
+      "system": "Pyro",
+      "body": "Pyro I"
+    },
+    {
+      "name": "Lazarus Complex Phoenix-II",
+      "system": "Pyro",
+      "body": "Pyro I"
+    },
+    {
+      "name": "Lazarus Complex Phoenix-III",
+      "system": "Pyro",
+      "body": "Pyro I"
+    },
+    {
+      "name": "Lazarus Complex Tithonus-I",
+      "system": "Pyro",
+      "body": "Pyro I"
+    },
+    {
+      "name": "Lazarus Complex Tithonus-II",
+      "system": "Pyro",
+      "body": "Pyro I"
+    },
+    {
+      "name": "Lazarus Complex Tithonus-III",
+      "system": "Pyro",
+      "body": "Pyro I"
+    },
+    {
+      "name": "Lazarus Transport Hub Phoenix-I",
+      "system": "Pyro",
+      "body": "Pyro I"
+    },
+    {
+      "name": "Lazarus Transport Hub Phoenix-II",
+      "system": "Pyro",
+      "body": "Pyro I"
+    },
+    {
+      "name": "Lazarus Transport Hub Phoenix-III",
+      "system": "Pyro",
+      "body": "Pyro I"
+    },
+    {
+      "name": "Lazarus Transport Hub Tithonus-I",
+      "system": "Pyro",
+      "body": "Pyro I"
+    },
+    {
+      "name": "Lazarus Transport Hub Tithonus-II",
+      "system": "Pyro",
+      "body": "Pyro I"
+    },
+    {
+      "name": "Lazarus Transport Hub Tithonus-III",
+      "system": "Pyro",
+      "body": "Pyro I"
+    },
+    {
+      "name": "Levski",
+      "system": "Nyx",
+      "body": null
+    },
+    {
+      "name": "Lorville",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Lorville Outskirts",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Loveridge Mineral Reserve",
+      "system": "Stanton",
+      "body": "Lyria"
+    },
+    {
+      "name": "Lowdown",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Ludlow",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Lyria Derelict Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Magda Derelict Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Magnus Gateway",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Mainline",
+      "system": "Stanton",
+      "body": "Yela"
+    },
+    {
+      "name": "Maker's Point",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Maria Pure of Heart",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Megumi Refueling at the L5 Lagrange of Pyro VI",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "MIC-L1 Shallow Frontier Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "MIC-L2 Long Forest Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "MIC-L3 Endless Odyssey Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "MIC-L4 Red Crossroads Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "MIC-L5 Modern Icarus Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "microTech Derelict Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "microTech Logistics Depot S4LD01",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "microTech Logistics Depot S4LD13",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Miner's Lament",
+      "system": "Stanton",
+      "body": "Yela"
+    },
+    {
+      "name": "Minlo Spire",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Mogote Aid Shelter",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "Monox",
+      "system": "Pyro",
+      "body": null
+    },
+    {
+      "name": "Moraine Base",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Moreland Hills",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Narena's Rest",
+      "system": "Pyro",
+      "body": "Bloom"
+    },
+    {
+      "name": "NB Int. Spaceport",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Nevermind",
+      "system": "Stanton",
+      "body": "Magda"
+    },
+    {
+      "name": "New Babbage",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Nyx - Castra Jump Point",
+      "system": "Nyx",
+      "body": null
+    },
+    {
+      "name": "Nyx - Pyro Jump Point",
+      "system": "Nyx",
+      "body": null
+    },
+    {
+      "name": "Orbituary",
+      "system": "Pyro",
+      "body": "Bloom"
+    },
+    {
+      "name": "Orison",
+      "system": "Stanton",
+      "body": "Crusader"
+    },
+    {
+      "name": "Ostler's Claim",
+      "system": "Pyro",
+      "body": "Monox"
+    },
+    {
+      "name": "Paradise Cove",
+      "system": "Stanton",
+      "body": "Wala"
+    },
+    {
+      "name": "Patch City at the L3 Lagrange of Pyro III",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "People's Service Station Alpha",
+      "system": "Nyx",
+      "body": null
+    },
+    {
+      "name": "People's Service Station Delta",
+      "system": "Nyx",
+      "body": null
+    },
+    {
+      "name": "People's Service Station Lambda",
+      "system": "Nyx",
+      "body": null
+    },
+    {
+      "name": "People's Service Station Theta",
+      "system": "Nyx",
+      "body": null
+    },
+    {
+      "name": "Picker's Field",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Port Olisar",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Port Tressler",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Prophet's Peak",
+      "system": "Pyro",
+      "body": "Adir"
+    },
+    {
+      "name": "Prospect Point",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Pyro 5a Abandoned Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Pyro 5b Abandoned Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Pyro 5c Abandoned Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Pyro 5d Abandoned Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Pyro 5e Abandoned Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Pyro 5f Abandoned Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Pyro Gateway",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Pyro I",
+      "system": "Pyro",
+      "body": null
+    },
+    {
+      "name": "Pyro I Abandoned Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Pyro II Abandoned Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Pyro III Abandoned Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Pyro IV",
+      "system": "Pyro",
+      "body": "Pyro V"
+    },
+    {
+      "name": "Pyro IV Abandoned Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Pyro V",
+      "system": "Pyro",
+      "body": null
+    },
+    {
+      "name": "Pyro V Abandoned Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Pyro VI Abandoned Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "QV Breaker Station",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "QV Extraction Station",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "QV Logistics Station",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Rappel",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Rat's Nest at the L5 Lagrange of Pyro V",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Raven's Roost",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Rayari",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Rayari Anvik Research Outpost",
+      "system": "Stanton",
+      "body": "Calliope"
+    },
+    {
+      "name": "Rayari Cantwell Research Outpost",
+      "system": "Stanton",
+      "body": "Clio"
+    },
+    {
+      "name": "Rayari Deltana Research Outpost",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Rayari Kaltag Research Outpost",
+      "system": "Stanton",
+      "body": "Calliope"
+    },
+    {
+      "name": "Rayari McGrath Research Outpost",
+      "system": "Stanton",
+      "body": "Clio"
+    },
+    {
+      "name": "Razor's Edge",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "REC-A",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "REC-B",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "REC-C",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "REC-D",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "REC-E",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "REC-F",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "REC-G",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "REC-H",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "REC-I",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Reclamation & Disposal Orinth",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Reclamation and Disposal in Lorville",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Regiment Downs",
+      "system": "Stanton",
+      "body": "Calliope"
+    },
+    {
+      "name": "REZ-A",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "REZ-B",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "REZ-C",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "REZ-D",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "REZ-E",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "REZ-F",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "REZ-G",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "REZ-H",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "REZ-I",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Rico's Remains",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Riker Memorial Spaceport",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Rock Bottom",
+      "system": "Stanton",
+      "body": "Lyria"
+    },
+    {
+      "name": "Rod's Fuel 'N Supplies at the L4 Lagrange of Pyro V",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Rolo's Crater",
+      "system": "Stanton",
+      "body": "Yela"
+    },
+    {
+      "name": "Rough Landing",
+      "system": "Pyro",
+      "body": "Terminus"
+    },
+    {
+      "name": "RSI Event Platform",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "RSRT-A",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "RSRT-B",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "RSRT-C",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "RSRT-D",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Ruin Station",
+      "system": "Pyro",
+      "body": "Terminus"
+    },
+    {
+      "name": "Ruptura OLP",
+      "system": "Stanton",
+      "body": "Aberdeen"
+    },
+    {
+      "name": "Ruptura PAF-I",
+      "system": "Stanton",
+      "body": "Aberdeen"
+    },
+    {
+      "name": "Ruptura PAF-II",
+      "system": "Stanton",
+      "body": "Aberdeen"
+    },
+    {
+      "name": "Ruptura PAF-III",
+      "system": "Stanton",
+      "body": "Aberdeen"
+    },
+    {
+      "name": "Rustville",
+      "system": "Pyro",
+      "body": "Pyro I"
+    },
+    {
+      "name": "Sacren's Plot",
+      "system": "Pyro",
+      "body": "Pyro IV"
+    },
+    {
+      "name": "Sakura Sun Goldenrod Workcenter",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Sakura Sun Magnolia Workcenter",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Scraper's Turn",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Scuttle",
+      "system": "Stanton",
+      "body": "Wala"
+    },
+    {
+      "name": "Security Post Awala",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "Security Post Birbari",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "Security Post Chilad",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "Security Post Criska",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Security Post Dawu",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Security Post Dipur on Cellin",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Security Post Erden",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Security Post Gandan",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "Security Post Hasik",
+      "system": "Stanton",
+      "body": "Yela"
+    },
+    {
+      "name": "Security Post Iteke",
+      "system": "Stanton",
+      "body": "Yela"
+    },
+    {
+      "name": "Security Post Klipra",
+      "system": "Stanton",
+      "body": "Yela"
+    },
+    {
+      "name": "Security Post Kota",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "Security Post Lespin",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Security Post Menian",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Security Post Moka",
+      "system": "Stanton",
+      "body": "Yela"
+    },
+    {
+      "name": "Security Post Moluto",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Security Post Opal",
+      "system": "Stanton",
+      "body": "Yela"
+    },
+    {
+      "name": "Security Post Pakote",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "Security Post Peska",
+      "system": "Stanton",
+      "body": "Yela"
+    },
+    {
+      "name": "Security Post Prashad",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Security Post Reawick",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Security Post Saktigar",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "Security Post Sharga",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "Security Post Tavan",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Security Post Thaquray on Daymar",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Security Post Triolet",
+      "system": "Stanton",
+      "body": "Yela"
+    },
+    {
+      "name": "Security Post Ulaga",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Security Post Walvis",
+      "system": "Stanton",
+      "body": "Yela"
+    },
+    {
+      "name": "Security Post Wan",
+      "system": "Stanton",
+      "body": "Yela"
+    },
+    {
+      "name": "Security Post Yafa",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Seer's Canyon",
+      "system": "Pyro",
+      "body": "Vatra"
+    },
+    {
+      "name": "Seraphim Station",
+      "system": "Stanton",
+      "body": "Crusader"
+    },
+    {
+      "name": "Shadowfall",
+      "system": "Pyro",
+      "body": "Bloom"
+    },
+    {
+      "name": "Shady Glen Farms",
+      "system": "Stanton",
+      "body": "Wala"
+    },
+    {
+      "name": "Shanks",
+      "system": "Stanton",
+      "body": "Euterpe"
+    },
+    {
+      "name": "Shepherd's Rest",
+      "system": "Pyro",
+      "body": "Bloom"
+    },
+    {
+      "name": "Shubin Mining Facility SAL-2",
+      "system": "Stanton",
+      "body": "Lyria"
+    },
+    {
+      "name": "Shubin Mining Facility SAL-5",
+      "system": "Stanton",
+      "body": "Lyria"
+    },
+    {
+      "name": "Shubin Mining Facility SCD-1",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Shubin Mining Facility SM0-10",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Shubin Mining Facility SM0-13",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Shubin Mining Facility SM0-18",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Shubin Mining Facility SM0-22",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "Shubin Mining Facility SMCa-6",
+      "system": "Stanton",
+      "body": "Calliope"
+    },
+    {
+      "name": "Shubin Mining Facility SMCa-8",
+      "system": "Stanton",
+      "body": "Calliope"
+    },
+    {
+      "name": "Site-B Lab",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Smokestack",
+      "system": "Stanton",
+      "body": "Arial"
+    },
+    {
+      "name": "SNK-A",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "SNK-B",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "SNK-C",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "SNK-D",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Solanki Platform",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Stag's Rut",
+      "system": "Pyro",
+      "body": "Pyro I"
+    },
+    {
+      "name": "Stanton Gateway",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Starlight Service Station",
+      "system": "Pyro",
+      "body": null
+    },
+    {
+      "name": "Starlight Service Station Clinic",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Starlight Service Station Entrance",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Starlight Service Station Habs",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Stone's Throw",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "Stonetree",
+      "system": "Pyro",
+      "body": "Terminus"
+    },
+    {
+      "name": "Sunset Mesa",
+      "system": "Pyro",
+      "body": "Monox"
+    },
+    {
+      "name": "Tamdon Plains Aid Shelter",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Teasa Spaceport",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Terminus",
+      "system": "Pyro",
+      "body": null
+    },
+    {
+      "name": "Terra Gateway",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "The Barrens",
+      "system": "Stanton",
+      "body": "microTech"
+    },
+    {
+      "name": "The Dregs",
+      "system": "Stanton",
+      "body": "Arial"
+    },
+    {
+      "name": "The Golden Riviera",
+      "system": "Pyro",
+      "body": "Bloom"
+    },
+    {
+      "name": "The Grove",
+      "system": "Stanton",
+      "body": "Aberdeen"
+    },
+    {
+      "name": "The Hollows",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "The Icebreaker",
+      "system": "Stanton",
+      "body": "Euterpe"
+    },
+    {
+      "name": "The Shades",
+      "system": "Stanton",
+      "body": "Ita"
+    },
+    {
+      "name": "The Sky Scraper",
+      "system": "Stanton",
+      "body": "ArcCorp"
+    },
+    {
+      "name": "The Snake Pit",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "The Yard",
+      "system": "Pyro",
+      "body": "Bloom"
+    },
+    {
+      "name": "Thimblerig",
+      "system": "Stanton",
+      "body": "Ita"
+    },
+    {
+      "name": "Tram & Myers Mining",
+      "system": "Stanton",
+      "body": "Cellin"
+    },
+    {
+      "name": "Tremonte",
+      "system": "Stanton",
+      "body": "Clio"
+    },
+    {
+      "name": "Trilo",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Vatra",
+      "system": "Pyro",
+      "body": "Pyro V"
+    },
+    {
+      "name": "Vivere OLP",
+      "system": "Stanton",
+      "body": "Aberdeen"
+    },
+    {
+      "name": "Vivere PAF-I",
+      "system": "Stanton",
+      "body": "Aberdeen"
+    },
+    {
+      "name": "Vivere PAF-II",
+      "system": "Stanton",
+      "body": "Aberdeen"
+    },
+    {
+      "name": "Vivere PAF-III",
+      "system": "Stanton",
+      "body": "Aberdeen"
+    },
+    {
+      "name": "Vuur",
+      "system": "Pyro",
+      "body": "Pyro V"
+    },
+    {
+      "name": "Wailing Rock",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "Wala Derelict Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Wallace's Lab at Grim HEX",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Wally's Bar",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Washout",
+      "system": "Stanton",
+      "body": "Wala"
+    },
+    {
+      "name": "Weeping Cove",
+      "system": "Stanton",
+      "body": "Hurston"
+    },
+    {
+      "name": "Whistler's Crypt",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Wikelo Emporium Dasi Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "Wikelo Emporium Kinga Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "Wikelo Emporium Selo Station",
+      "system": "Stanton",
+      "body": null
+    },
+    {
+      "name": "Wiley Flats",
+      "system": "Stanton",
+      "body": "Wala"
+    },
+    {
+      "name": "Windfall",
+      "system": "Pyro",
+      "body": "Bloom"
+    },
+    {
+      "name": "Wolf Point Aid Shelter",
+      "system": "Stanton",
+      "body": "Daymar"
+    },
+    {
+      "name": "World's End",
+      "system": "Stanton",
+      "body": "Lyria"
+    },
+    {
+      "name": "Yadar Valley",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Yang's Place",
+      "system": "Pyro",
+      "body": "Monox"
+    },
+    {
+      "name": "Yela Derelict Outpost",
+      "system": null,
+      "body": null
+    },
+    {
+      "name": "Zephyr",
+      "system": "Stanton",
+      "body": "Hurston"
+    }
+  ]
+}

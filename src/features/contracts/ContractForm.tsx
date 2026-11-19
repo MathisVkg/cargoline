@@ -63,7 +63,7 @@ export function ContractForm({
     [bundledLocations, userLocations, locationKey],
   );
   const commoditySuggestions = useMemo(
-    () => mergeSuggestions(bundledCommodities, fromNames(usedCommodities), fromNames(commodityKey.split("\u0000"))),
+    () => mergeSuggestions(bundledCommodities, fromNames(usedCommodities, true), fromNames(commodityKey.split("\u0000"))),
     [bundledCommodities, usedCommodities, commodityKey],
   );
 
@@ -150,7 +150,7 @@ function RequirementEditor({
   const number = String(index + 1).padStart(2, "0");
   const label = `Objective ${number}`;
   return (
-    <li className="rounded-sm border border-line bg-base/40 p-2.5" aria-label={label}>
+    <li className="rounded-sm border border-line bg-canvas/40 p-2.5" aria-label={label}>
       <div className="grid items-start gap-2 grid-cols-[1.5rem_minmax(0,1fr)_2rem] @min-[560px]:grid-cols-[1.5rem_minmax(0,1fr)_6.5rem_7.5rem_2rem]">
         <span className="pt-5 font-mono text-xs text-accent" aria-hidden="true">
           {number}
@@ -172,7 +172,7 @@ function RequirementEditor({
             value={req.quantityScu}
             onChange={(quantityScu) => onChange({ ...req, quantityScu })}
             error={issues.get(`${path}.quantityScu`)}
-            placeholder="12"
+            placeholder="e.g. 12"
             inputMode="decimal"
           />
           <TextField
@@ -181,7 +181,7 @@ function RequirementEditor({
             value={req.maxBoxSizeScu}
             onChange={(maxBoxSizeScu) => onChange({ ...req, maxBoxSizeScu })}
             error={issues.get(`${path}.maxBoxSizeScu`)}
-            placeholder="If known"
+            placeholder="e.g. 8"
             inputMode="decimal"
           />
         </div>
@@ -315,7 +315,7 @@ function TextField({ label, value, onChange, error, placeholder, inputMode, opti
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
         className={[
-          "h-8 w-full min-w-0 rounded-sm border bg-raised px-2 text-sm text-fg placeholder:text-dim",
+          "h-8 w-full min-w-0 rounded-sm border bg-raised px-2 text-sm text-fg placeholder:text-placeholder",
           "transition-colors duration-150 focus-visible:outline-offset-0 disabled:opacity-60",
           error ? "border-danger" : "border-line hover:border-line-strong",
         ].join(" ")}

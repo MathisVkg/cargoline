@@ -22,7 +22,7 @@ export default function App() {
   };
 
   return (
-    <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto] bg-base">
+    <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto] bg-canvas">
       <TopBar />
       <main
         ref={mainRef}
