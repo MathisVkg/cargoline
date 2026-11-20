@@ -1,27 +1,41 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, Boxes, LoaderCircle, MapPin, PackageCheck, RotateCw } from "lucide-react";
-import { CollapsiblePanel, EmptyState, PageContainer, PageHeader, Panel, PanelHeader, Tag } from "../components/ui";
+import { useCallback, useEffect, useMemo, useReducer, useState, type Dispatch } from "react";
+import { AlertTriangle, ArrowDownToLine, ArrowUpFromLine, LoaderCircle, MapPin, PackageCheck, RotateCw } from "lucide-react";
+import { CollapsiblePanel, EmptyState, PageContainer, PageHeader, Panel } from "../components/ui";
 import { describeError, listActiveContracts, toCommandError } from "../features/contracts/api";
 import { capacityState, formatPercent } from "../features/contracts/summary";
 import { formatScu } from "../features/contracts/scu";
 import type { CommandError, ContractDetail } from "../features/contracts/types";
 import type { FlowState } from "../features/gamelog/flow";
-import { describeAmount, formatAmount, summarizeCargo, type OperationSummary, type SummaryLine } from "../features/cargo/summary";
+import { describeAmount, formatAmount, requirementCargo, summarizeCargo, type OperationSummary, type SummaryLine } from "../features/cargo/summary";
+import { estimateBoxes, type ColorMode, type EstimatedBox } from "../features/cargo/boxes";
+import { layoutCargo } from "../features/cargo/layout";
+import {
+  NO_HIGHLIGHT,
+  activeSelection,
+  highlightedLines,
+  reduceHighlight,
+  selectionId,
+  type HighlightAction,
+  type Selection,
+} from "../features/cargo/highlight";
+import { CargoView } from "../features/cargo/CargoView";
 import { useShips } from "../features/ships/store";
 
 type ListState = { status: "loading" } | { status: "error"; error: CommandError } | { status: "ready"; contracts: ContractDetail[] };
 
-/** Pickup / Destination expanded state, kept for the session (survives page switches). */
+/** Pickup / Destination expanded state and the colour mode, kept for the session. */
 const sessionOpen = { pickup: true, delivery: true };
+let sessionMode: ColorMode = "destination";
 
 /**
- * Cargo overview (Task 13): Pickup and Destination summaries of the active contracts. The
- * "Cargo arrangement" panel stays a placeholder (Task 13.1).
+ * Cargo overview: Pickup and Destination summaries of the active contracts (Task 13) and the
+ * isometric "Cargo arrangement" (Task 13.1), linked by a shared highlight.
  *
- * Layout rule: the two panels sit side by side whenever the *usable content width* is at least
- * 990 CSS px, and stack only below that. This is driven by a CSS container query on the page
- * content (not a viewport media query and not orientation), so a tall/portrait window that is
- * still >= 990 px wide keeps the two-column layout.
+ * Layout rule: the two panels sit side by side whenever the **app width** is at least 990 CSS px,
+ * and stack only below that (a width rule, never orientation, so a tall/portrait window that is
+ * still >= 990 px wide keeps two columns). It is the same `min-[990px]` rule as the Contracts
+ * summary. A container query on the page content did not work: at a 990 px app width the
+ * content is only ~927 px wide (page padding and scrollbar gutter), so it stacked.
  */
 export function CargoPage({ flow }: { flow: FlowState }) {
   const [list, setList] = useState<ListState>({ status: "loading" });
@@ -49,6 +63,41 @@ export function CargoPage({ flow }: { flow: FlowState }) {
 
   const summary = useMemo(() => (list.status === "ready" ? summarizeCargo(list.contracts) : null), [list]);
 
+  // The box view recomputes when the active list, the ship or the colour mode changes.
+  const [mode, setModeState] = useState<ColorMode>(sessionMode);
+  const setMode = (m: ColorMode) => {
+    sessionMode = m;
+    setModeState(m);
+  };
+  const shipMax = ship?.maxContainerScu ?? null;
+  const shipCapacity = ship?.cargoScu ?? null;
+  const boxes = useMemo<EstimatedBox[]>(
+    () => (list.status === "ready" ? estimateBoxes(requirementCargo(list.contracts), shipMax) : []),
+    [list, shipMax],
+  );
+  const layout = useMemo(
+    () => (list.status === "ready" ? layoutCargo(boxes, { mode, shipCapacityScu: shipCapacity }) : null),
+    [list.status, boxes, mode, shipCapacity],
+  );
+
+  const [highlight, dispatchHighlight] = useReducer(reduceHighlight, NO_HIGHLIGHT);
+  const selection = activeSelection(highlight);
+  const litLines = useMemo(() => highlightedLines(boxes, selection, mode), [boxes, selection, mode]);
+  // Escape clears a pinned highlight (dialogs handle their own Escape first).
+  useEffect(() => {
+    if (!highlight.pinned) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.querySelector("dialog[open]")) dispatchHighlight({ type: "clear" });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [highlight.pinned]);
+  // A new list or colour mode can make a pinned box disappear: clear it.
+  useEffect(() => {
+    dispatchHighlight({ type: "clear" });
+  }, [list, mode]);
+  const link = { lit: litLines, pinned: highlight.pinned ? selectionId(highlight.pinned) : null, dispatch: dispatchHighlight };
+
   return (
     <PageContainer wide>
       <div className="@container">
@@ -61,7 +110,7 @@ export function CargoPage({ flow }: { flow: FlowState }) {
 
         <div
           data-testid="cargo-layout"
-          className="grid grid-cols-1 gap-4 @min-[990px]:grid-cols-[minmax(320px,2fr)_minmax(0,3fr)] @min-[990px]:items-start"
+          className="grid grid-cols-1 gap-4 min-[990px]:grid-cols-[minmax(320px,2fr)_minmax(0,3fr)] min-[990px]:items-start"
         >
           <div className="flex min-w-0 flex-col gap-4">
             {list.status === "loading" && (
@@ -95,12 +144,14 @@ export function CargoPage({ flow }: { flow: FlowState }) {
               <>
                 <OperationCard
                   title="Pickup"
+                  link={link}
                   summary={summary.pickup}
                   open={open.pickup}
                   onOpenChange={(v) => toggle("pickup", v)}
                 />
                 <OperationCard
                   title="Destination"
+                  link={link}
                   summary={summary.delivery}
                   open={open.delivery}
                   onOpenChange={(v) => toggle("delivery", v)}
@@ -109,18 +160,22 @@ export function CargoPage({ flow }: { flow: FlowState }) {
             )}
           </div>
 
-          <Panel>
-            <PanelHeader title="Cargo arrangement" meta={<Tag>Not available yet</Tag>} />
-            <div className="relative px-4 py-6">
-              <DeckOutline />
-              <div className="mt-2">
-                <EmptyState icon={Boxes} title="Nothing to visualise" compact>
-                  A read-only isometric view of active cargo will appear here. Select a ship later to scale the
-                  view; capacity is informational only.
-                </EmptyState>
-              </div>
-            </div>
-          </Panel>
+          {list.status === "ready" ? (
+            <CargoView
+              layout={layout}
+              boxes={boxes}
+              mode={mode}
+              onModeChange={setMode}
+              ship={ship}
+              activeScuMilli={summary?.activeScuMilli ?? null}
+              highlight={highlight}
+              dispatch={dispatchHighlight}
+            />
+          ) : (
+            <Panel>
+              <div className="px-4 py-3 text-sm font-semibold tracking-wide text-fg">Cargo arrangement</div>
+            </Panel>
+          )}
         </div>
       </div>
     </PageContainer>
@@ -161,16 +216,35 @@ const EMPTY_TEXT = {
   delivery: { icon: PackageCheck, title: "No deliveries", body: "Destination locations and their commodities will be listed here." },
 } as const;
 
+interface Link {
+  /** Summary line keys highlighted by the current selection. */
+  lit: Set<string>;
+  /** `selectionId` of the pinned selection. */
+  pinned: string | null;
+  dispatch: Dispatch<HighlightAction>;
+}
+
+/** Mouse handlers linking a heading or line to the box view (keyboard: the legend). */
+function linkHandlers(link: Link, selection: Selection) {
+  return {
+    onMouseEnter: () => link.dispatch({ type: "hover", selection }),
+    onMouseLeave: () => link.dispatch({ type: "hover", selection: null }),
+    onClick: () => link.dispatch({ type: "click", selection }),
+  };
+}
+
 function OperationCard({
   title,
   summary,
   open,
   onOpenChange,
+  link,
 }: {
   title: string;
   summary: OperationSummary;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  link: Link;
 }) {
   const empty = EMPTY_TEXT[summary.operation];
   const Icon = summary.operation === "pickup" ? ArrowUpFromLine : ArrowDownToLine;
@@ -194,7 +268,13 @@ function OperationCard({
         <ul className="divide-y divide-line" aria-label={`${title} locations`}>
           {summary.locations.map((location) => (
             <li key={location.key} className="px-4 py-2.5">
-              <h3 className="flex min-w-0 items-baseline gap-2">
+              <h3
+                className={[
+                  "-mx-1.5 flex min-w-0 cursor-pointer items-baseline gap-2 rounded-sm px-1.5",
+                  link.pinned === selectionId({ kind: "location", operation: summary.operation, location: location.locationName }) ? "bg-raised" : "hover:bg-raised/60",
+                ].join(" ")}
+                {...linkHandlers(link, { kind: "location", operation: summary.operation, location: location.locationName })}
+              >
                 <Icon className={`size-3.5 shrink-0 self-center ${tone}`} aria-hidden="true" />
                 <span className="min-w-0 flex-1 text-sm font-semibold break-words text-fg">{location.locationName}</span>
                 <span className="shrink-0 font-mono text-xs whitespace-nowrap text-muted" title={describeAmount(location.total)}>
@@ -203,7 +283,13 @@ function OperationCard({
               </h3>
               <ul className="mt-1 flex flex-col pl-5.5">
                 {location.lines.map((line) => (
-                  <Line key={line.key} line={line} operation={summary.operation} />
+                  <Line
+                    key={line.key}
+                    line={line}
+                    operation={summary.operation}
+                    lit={link.lit.has(line.key)}
+                    handlers={linkHandlers(link, { kind: "line", operation: summary.operation, location: location.locationName, commodity: line.commodityName })}
+                  />
                 ))}
               </ul>
             </li>
@@ -214,11 +300,29 @@ function OperationCard({
   );
 }
 
-function Line({ line, operation }: { line: SummaryLine; operation: "pickup" | "delivery" }) {
+function Line({
+  line,
+  operation,
+  lit,
+  handlers,
+}: {
+  line: SummaryLine;
+  operation: "pickup" | "delivery";
+  lit: boolean;
+  handlers: ReturnType<typeof linkHandlers>;
+}) {
   const refs = line.contractRefs.join(" · ");
   const done = operation === "pickup" ? "picked up" : "turned in";
   return (
-    <li className={["flex min-w-0 items-baseline gap-2 py-0.5 text-sm", line.allTicked ? "opacity-55" : ""].join(" ")}>
+    <li
+      {...handlers}
+      data-line-key={line.key}
+      className={[
+        "-mx-1.5 flex min-w-0 cursor-pointer items-baseline gap-2 rounded-sm px-1.5 py-0.5 text-sm",
+        lit ? "bg-raised shadow-[inset_2px_0_0_var(--color-accent)]" : "hover:bg-raised/60",
+        line.allTicked && !lit ? "opacity-55" : "",
+      ].join(" ")}
+    >
       <span className="min-w-0 flex-1 truncate text-muted" title={line.commodityName}>
         {line.commodityName}
         {line.allTicked && <span className="sr-only"> (all {done})</span>}
@@ -230,32 +334,5 @@ function Line({ line, operation }: { line: SummaryLine; operation: "pickup" | "d
         {formatAmount(line.amount)}
       </span>
     </li>
-  );
-}
-
-/** Decorative empty isometric deck grid (no cargo data). */
-function DeckOutline() {
-  const cols = 8;
-  const rows = 5;
-  const w = 36; // half-width of one cell in px (isometric 2:1)
-  const h = w / 2;
-  const ox = rows * w;
-  const lines: string[] = [];
-  for (let c = 0; c <= cols; c++) {
-    lines.push(`M${ox + c * w},${c * h} L${ox + c * w - rows * w},${c * h + rows * h}`);
-  }
-  for (let r = 0; r <= rows; r++) {
-    lines.push(`M${ox - r * w},${r * h} L${ox - r * w + cols * w},${r * h + cols * h}`);
-  }
-  const vw = (cols + rows) * w;
-  const vh = (cols + rows) * h;
-  return (
-    <svg
-      viewBox={`-2 -2 ${vw + 4} ${vh + 4}`}
-      className="mx-auto block h-auto w-full max-w-xl text-line-strong"
-      aria-hidden="true"
-    >
-      <path d={lines.join(" ")} fill="none" stroke="currentColor" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-    </svg>
   );
 }

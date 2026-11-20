@@ -68,8 +68,20 @@ function addAmounts(a: Amount, b: Amount): Amount {
   return { scuMilli: a.scuMilli + b.scuMilli, complete: a.complete && b.complete, anyKnown: a.anyKnown || b.anyKnown };
 }
 
-const compareNames = (a: string, b: string) => a.localeCompare(b, "en", { sensitivity: "base" }) || (a < b ? -1 : a > b ? 1 : 0);
-const commodityKey = (name: string) => name.trim().replace(/\s+/g, " ").toLowerCase();
+export const compareNames = (a: string, b: string) =>
+  a.localeCompare(b, "en", { sensitivity: "base" }) || (a < b ? -1 : a > b ? 1 : 0);
+/** Case- and whitespace-insensitive identity for a commodity name. */
+export const commodityKey = (name: string) => name.trim().replace(/\s+/g, " ").toLowerCase();
+
+/** Identity of a summary line; the box view uses the same keys for the linked highlight. */
+export function lineKey(operation: Operation, location: string, commodity: string): string {
+  return `${operation}|${locationKey(location)}|${commodityKey(commodity)}`;
+}
+
+/** Identity of a location heading in one card. */
+export function locationHeadingKey(operation: Operation, location: string): string {
+  return `${operation}|${locationKey(location)}`;
+}
 
 function operationSummary(contracts: readonly ContractDetail[], operation: Operation): OperationSummary {
   const locations: SummaryLocation[] = [];
@@ -82,7 +94,7 @@ function operationSummary(contracts: readonly ContractDetail[], operation: Opera
       let line = lines.get(key);
       if (!line) {
         line = {
-          key: `${operation}|${locationKey(group.locationName)}|${key}`,
+          key: lineKey(operation, group.locationName, row.commodityName),
           commodityName: row.commodityName.trim(),
           amount: EMPTY,
           contractRefs: [],
@@ -101,7 +113,7 @@ function operationSummary(contracts: readonly ContractDetail[], operation: Opera
       .map(({ ticked, ...line }) => ({ ...line, allTicked: ticked.every(Boolean) }))
       .sort((a, b) => compareNames(a.commodityName, b.commodityName));
     locations.push({
-      key: `${operation}|${group.key}`,
+      key: locationHeadingKey(operation, group.locationName),
       locationName: group.locationName,
       total: sorted.reduce((t, l) => addAmounts(t, l.amount), EMPTY),
       lines: sorted,
@@ -148,6 +160,10 @@ export interface RequirementCargo {
   maxBoxScuMilli: number | null;
   pickupLocations: string[];
   deliveryLocations: string[];
+  /** Each delivery with its stored quantity (null = unknown split). */
+  deliveries: { locationName: string; scuMilli: number | null }[];
+  /** Stored box groups (`exact` only), largest first. */
+  boxGroups: { sizeScuMilli: number; count: number }[];
 }
 
 /** Every requirement of the active contracts, by contract then requirement id. */
@@ -168,6 +184,11 @@ export function requirementCargo(contracts: readonly ContractDetail[]): Requirem
           maxBoxScuMilli: r.maxBoxSizeScuMilli,
           pickupLocations: r.pickups.map((s) => s.locationName),
           deliveryLocations: r.deliveries.map((s) => s.locationName),
+          deliveries: r.deliveries.map((s) => ({ locationName: s.locationName, scuMilli: s.quantityScuMilli })),
+          boxGroups: r.boxGroups
+            .filter((g) => g.sourceQuality === "exact")
+            .map((g) => ({ sizeScuMilli: g.boxSizeScuMilli, count: g.boxCount }))
+            .sort((a, b) => b.sizeScuMilli - a.sizeScuMilli),
         })),
     );
 }
