@@ -50,12 +50,21 @@ interface CollapsiblePanelProps {
   title: string;
   meta?: ReactNode;
   defaultOpen?: boolean;
+  /** Controlled mode: the caller keeps the state (e.g. for the session). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }
 
 /** Panel whose body can be collapsed independently of other panels. */
-export function CollapsiblePanel({ title, meta, defaultOpen = true, children }: CollapsiblePanelProps) {
-  const [open, setOpen] = useState(defaultOpen);
+export function CollapsiblePanel({ title, meta, defaultOpen = true, open: controlled, onOpenChange, children }: CollapsiblePanelProps) {
+  const [own, setOwn] = useState(defaultOpen);
+  const open = controlled ?? own;
+  const setOpen = (change: (v: boolean) => boolean) => {
+    const next = change(open);
+    if (controlled === undefined) setOwn(next);
+    onOpenChange?.(next);
+  };
   const bodyId = useId();
   return (
     <Panel>

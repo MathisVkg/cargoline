@@ -286,6 +286,21 @@ pub fn file_for_serving(
         .filter(|f| f.is_file()))
 }
 
+/// Deletes the files of rows already deleted (Clear History). Only validated names inside
+/// `dir` are touched; anything else is skipped. Returns the problems (never fails).
+pub fn remove_files(dir: &Path, stored_paths: &[String]) -> Vec<String> {
+    let mut errors = Vec::new();
+    for stored in stored_paths {
+        let Some(file) = file_in_dir(dir, stored) else {
+            continue; // not one of our file names: never deleted
+        };
+        if let Err(e) = remove_if_exists(&file) {
+            errors.push(format!("deleting {}: {e}", file.display()));
+        }
+    }
+    errors
+}
+
 fn remove_if_exists(path: &Path) -> std::io::Result<()> {
     match fs::remove_file(path) {
         Err(e) if e.kind() != ErrorKind::NotFound => Err(e),

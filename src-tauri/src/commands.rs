@@ -75,6 +75,12 @@ pub enum CommandError {
         reason: ReactivateFailure,
         id: Option<i64>,
     },
+    /// Restore from History: the contract is active, not completed or abandoned; nothing changed.
+    NotFinished {
+        message: String,
+        id: i64,
+        status: String,
+    },
 }
 
 /// Why `reactivate_contracts` refused.
@@ -84,6 +90,7 @@ pub enum ReactivateFailure {
     Empty,
     NotFound,
     NotCompleted,
+    NotFinished,
     TooOld,
 }
 
@@ -106,6 +113,7 @@ impl From<ReactivateError> for CommandError {
             ReactivateError::Empty => (ReactivateFailure::Empty, None),
             ReactivateError::NotFound(id) => (ReactivateFailure::NotFound, Some(id)),
             ReactivateError::NotCompleted { id, .. } => (ReactivateFailure::NotCompleted, Some(id)),
+            ReactivateError::NotFinished { id, .. } => (ReactivateFailure::NotFinished, Some(id)),
             ReactivateError::TooOld(id) => (ReactivateFailure::TooOld, Some(id)),
             ReactivateError::Sqlite(message) => return Self::Database { message },
         };
@@ -485,6 +493,76 @@ pub async fn reactivate_contracts(
             &ids,
             crate::database::now_utc_ms(),
         )?)
+    })
+    .await
+}
+
+/* ------------------------------------------------------------- History */
+
+/// Restore errors use the plain kinds: `notFound` and `notFinished` (and `validation` when
+/// the list is empty).
+fn restore_error(error: ReactivateError) -> CommandError {
+    match error {
+        ReactivateError::Empty => validation("ids", "Select at least one contract."),
+        ReactivateError::NotFound(id) => CommandError::NotFound {
+            message: error.to_string(),
+            id,
+        },
+        ReactivateError::NotFinished { id, ref status } => CommandError::NotFinished {
+            message: error.to_string(),
+            id,
+            status: status.clone(),
+        },
+        ReactivateError::Sqlite(message) => CommandError::Database { message },
+        other => CommandError::Internal {
+            message: other.to_string(),
+        },
+    }
+}
+
+/// Finished contracts grouped by run (newest first) and the lifetime statistics.
+#[tauri::command]
+pub async fn get_history(app: AppHandle) -> Result<crate::history::History, CommandError> {
+    run_blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let db = state.wait_ready(READY_TIMEOUT)?;
+        let conn = db.connection()?;
+        Ok(crate::history::get_history(&conn)?)
+    })
+    .await
+}
+
+/// Sets completed or abandoned contracts back to active, all or nothing, with no time limit.
+/// The run, cargo, ticks, MissionId and capture link are untouched.
+#[tauri::command]
+pub async fn restore_contracts(
+    app: AppHandle,
+    ids: Vec<i64>,
+) -> Result<Vec<ContractDetail>, CommandError> {
+    run_blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let db = state.wait_ready(READY_TIMEOUT)?;
+        let mut conn = db.connection()?;
+        reactivate::restore_contracts(&mut conn, &ids, crate::database::now_utc_ms())
+            .map_err(restore_error)
+    })
+    .await
+}
+
+/// Erases all history: every finished contract (cargo cascades), their screenshots and every
+/// run left empty. Active contracts and settings are not affected. Run numbers are never reused.
+#[tauri::command]
+pub async fn clear_history(app: AppHandle) -> Result<crate::history::ClearReport, CommandError> {
+    run_blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let db = state.wait_ready(READY_TIMEOUT)?;
+        let mut conn = db.connection()?;
+        let dir = capture_service::captures_dir(&app).ok();
+        let report = crate::history::clear_history(&mut conn, dir.as_deref())?;
+        for e in &report.file_errors {
+            eprintln!("[cargo-line] clear history: {e}");
+        }
+        Ok(report)
     })
     .await
 }

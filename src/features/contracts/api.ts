@@ -63,6 +63,8 @@ export function describeError(error: CommandError): string {
       return `Unexpected error: ${error.message}`;
     case "notFound":
       return "This contract no longer exists.";
+    case "notFinished":
+      return `This contract is ${error.status}, not finished.`;
     case "notActive":
       return `This contract is already ${error.status}.`;
     case "conflict":

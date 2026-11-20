@@ -125,7 +125,8 @@ pub fn list_active_contracts(conn: &Connection) -> rusqlite::Result<Vec<Contract
     load_contracts(conn, None)
 }
 
-/// Finds the run of the local date or creates it with the next run number.
+/// Finds the run of the local date or creates it with the next run number. Numbers continue
+/// from the highest ever assigned (`run_sequence`), so a cleared history never reuses one.
 fn run_for_date(conn: &Connection, accepted: &AcceptanceTime) -> rusqlite::Result<i64> {
     let existing = conn
         .prepare_cached("SELECT id FROM runs WHERE run_date = ?1")?
@@ -136,7 +137,7 @@ fn run_for_date(conn: &Connection, accepted: &AcceptanceTime) -> rusqlite::Resul
     }
     conn.prepare_cached(
         "INSERT INTO runs (run_number, run_date, created_at, utc_offset_minutes)
-         VALUES ((SELECT COALESCE(MAX(run_number), 0) + 1 FROM runs), ?1, ?2, ?3)",
+         VALUES ((SELECT last_run_number + 1 FROM run_sequence WHERE id = 1), ?1, ?2, ?3)",
     )?
     .execute(params![
         accepted.local_date,
@@ -149,8 +150,28 @@ fn run_for_date(conn: &Connection, accepted: &AcceptanceTime) -> rusqlite::Resul
 /// Loads one contract (`Some(id)`) or all active contracts (`None`).
 fn load_contracts(conn: &Connection, only: Option<i64>) -> rusqlite::Result<Vec<ContractDetail>> {
     // ?1 IS NULL selects all active contracts; otherwise exactly one contract.
-    let filter = "(?1 IS NULL AND c.status = 'active') OR c.id = ?1";
+    load_contracts_where(
+        conn,
+        "(?1 IS NULL AND c.status = 'active') OR c.id = ?1",
+        only,
+    )
+}
 
+/// Every completed or abandoned contract with nested cargo, in the same four queries.
+pub fn list_finished_contracts(conn: &Connection) -> rusqlite::Result<Vec<ContractDetail>> {
+    load_contracts_where(
+        conn,
+        "?1 IS NULL AND c.status IN ('completed', 'abandoned')",
+        None,
+    )
+}
+
+/// `filter` is a condition on `c` (contracts) with one optional parameter `?1`.
+fn load_contracts_where(
+    conn: &Connection,
+    filter: &str,
+    only: Option<i64>,
+) -> rusqlite::Result<Vec<ContractDetail>> {
     let mut contracts: Vec<ContractDetail> = conn
         .prepare_cached(&format!(
             "SELECT c.id, r.id, r.run_number, r.run_date, c.title, c.reward_auec, c.status, c.source, c.accepted_at, c.finished_at

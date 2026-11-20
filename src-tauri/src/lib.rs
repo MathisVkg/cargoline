@@ -8,6 +8,7 @@ pub mod commands;
 pub mod contracts;
 pub mod database;
 pub mod gamelog;
+pub mod history;
 pub mod locations;
 pub mod ocr;
 pub mod parser;
@@ -17,6 +18,36 @@ pub mod ships;
 
 use database::{Database, DatabaseState, DATABASE_FILE_NAME};
 use tauri::{Manager, Runtime};
+
+/// Debug builds only: `CARGO_LINE_DEV_DATA_DIR` replaces the app data folders (database,
+/// captures, OCR temp files) so a desktop test session never touches the real data. Release
+/// builds ignore it.
+pub const DEV_DATA_DIR_ENV: &str = "CARGO_LINE_DEV_DATA_DIR";
+
+fn dev_data_dir() -> Option<std::path::PathBuf> {
+    if !cfg!(debug_assertions) {
+        return None;
+    }
+    std::env::var_os(DEV_DATA_DIR_ENV)
+        .filter(|v| !v.is_empty())
+        .map(std::path::PathBuf::from)
+}
+
+/// The roaming app data folder (database, captures), or the dev override.
+pub fn data_dir<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<std::path::PathBuf> {
+    match dev_data_dir() {
+        Some(dir) => Ok(dir),
+        None => app.path().app_data_dir(),
+    }
+}
+
+/// The local app data folder (OCR temp files), or `<dev override>/local`.
+pub fn local_data_dir<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<std::path::PathBuf> {
+    match dev_data_dir() {
+        Some(dir) => Ok(dir.join("local")),
+        None => app.path().app_local_data_dir(),
+    }
+}
 
 /// Builds and runs the Tauri application.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -67,6 +98,9 @@ pub fn run() {
             commands::game_log_browse_start,
             commands::update_capture_shortcut,
             commands::reactivate_contracts,
+            commands::get_history,
+            commands::restore_contracts,
+            commands::clear_history,
             commands::list_ships,
             commands::get_selected_ship,
             commands::set_selected_ship,
@@ -85,9 +119,10 @@ fn start_database<R: Runtime>(app: &tauri::AppHandle<R>) {
     std::thread::Builder::new()
         .name("database-init".into())
         .spawn(move || {
-            let outcome = app
-                .path()
-                .app_data_dir()
+            if let Some(dir) = dev_data_dir() {
+                eprintln!("[cargo-line] dev data folder override: {}", dir.display());
+            }
+            let outcome = data_dir(&app)
                 .map_err(|e| {
                     database::DatabaseError::Unavailable(format!("no app data directory: {e}"))
                 })

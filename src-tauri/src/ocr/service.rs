@@ -42,9 +42,7 @@ impl OcrState {
             .path()
             .resource_dir()
             .map_err(|e| OcrError::EngineMissing(format!("no resource folder: {e}")))?;
-        let temp = app
-            .path()
-            .app_local_data_dir()
+        let temp = crate::local_data_dir(app)
             .map_err(|e| OcrError::Failed(format!("no local data folder: {e}")))?
             .join("ocr-tmp");
         let engine = Engine::in_dir(&resources.join(BUNDLE_DIR), temp, CALL_TIMEOUT);

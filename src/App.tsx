@@ -81,8 +81,8 @@ export default function App() {
         className="min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]"
       >
         {page === "contracts" && <ContractsPage flow={flow} dispatch={dispatch} />}
-        {page === "cargo" && <CargoPage />}
-        {page === "history" && <HistoryPage />}
+        {page === "cargo" && <CargoPage flow={flow} />}
+        {page === "history" && <HistoryPage flow={flow} dispatch={dispatch} />}
         {page === "settings" && <SettingsPage />}
       </main>
       <BottomNav current={page} onNavigate={navigate} />

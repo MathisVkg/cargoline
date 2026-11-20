@@ -93,7 +93,9 @@ export type FlowAction =
   | { type: "autoCompleted"; batch: number; completed: number[]; failed: Completion[]; now: number }
   | { type: "bannerDismiss"; id: number }
   /** Undo succeeded. */
-  | { type: "undone"; id: number };
+  | { type: "undone"; id: number }
+  /** Contracts were finalised, restored or cleared on a page: every page reloads its list. */
+  | { type: "contractsChanged" };
 
 const CLOSED: ModalState = { open: false, kind: null, event: null, auto: false, forceCapture: false, session: 0 };
 
@@ -268,6 +270,8 @@ export function reduceFlow(state: FlowState, action: FlowAction): FlowState {
     }
     case "bannerDismiss":
       return state.banner?.id === action.id ? { ...state, banner: null } : state;
+    case "contractsChanged":
+      return { ...state, listVersion: state.listVersion + 1 };
     case "undone":
       return state.banner?.id === action.id ? { ...state, banner: null, listVersion: state.listVersion + 1 } : state;
     case "shortcut":

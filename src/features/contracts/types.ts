@@ -102,6 +102,8 @@ export type CommandError =
   | { kind: "ocr"; reason: OcrFailure; message: string }
   /** The ship id is not in the catalog. */
   | { kind: "unknownShip"; message: string; shipId: string }
+  /** Restore from History: the contract is not completed or abandoned. */
+  | { kind: "notFinished"; message: string; id: number; status: string }
   /** An Undo of a completion was refused; nothing changed. */
   | { kind: "cannotReactivate"; message: string; reason: "empty" | "notFound" | "notCompleted" | "tooOld"; id: number | null };
 

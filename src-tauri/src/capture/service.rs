@@ -39,8 +39,7 @@ pub enum ServiceError {
 }
 
 pub fn captures_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, ServiceError> {
-    app.path()
-        .app_data_dir()
+    crate::data_dir(app)
         .map(|dir| dir.join(CAPTURES_DIR_NAME))
         .map_err(|e| ServiceError::NoDataDir(e.to_string()))
 }

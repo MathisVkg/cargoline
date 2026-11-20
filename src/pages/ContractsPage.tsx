@@ -214,7 +214,7 @@ export function ContractsPage({ flow, dispatch }: { flow: FlowState; dispatch: D
       }
       setPending(null);
       showNotice(successNotice(confirmation), "success");
-      void refresh();
+      dispatch({ type: "contractsChanged" }); // History and the summary stay in sync
       return { ok: true };
     } catch (thrown) {
       const error = toCommandError(thrown);
