@@ -10,6 +10,7 @@ import { getSettings } from "./features/capture/api";
 import { onGameLogEvent, SETTINGS_CHANGED } from "./features/gamelog/api";
 import { initialFlow, reduceFlow } from "./features/gamelog/flow";
 import { matchesShortcut } from "./features/gamelog/shortcut";
+import { GameCompletions } from "./features/gamelog/GameCompletions";
 
 /**
  * Application shell: fixed top bar, independently scrolling main area,
@@ -85,6 +86,7 @@ export default function App() {
         {page === "settings" && <SettingsPage />}
       </main>
       <BottomNav current={page} onNavigate={navigate} />
+      <GameCompletions flow={flow} dispatch={dispatch} />
     </div>
   );
 }

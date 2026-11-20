@@ -10,7 +10,9 @@ use rusqlite::{params, Connection};
 use serde_json::{Map, Value};
 
 use crate::database::now_utc_ms;
-pub use models::{AppSettings, CaptureSource, ContractGrouping, InvalidSetting};
+pub use models::{
+    AppSettings, CaptureSource, CompleteFromGameMode, ContractGrouping, InvalidSetting,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SettingsError {

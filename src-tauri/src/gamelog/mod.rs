@@ -44,13 +44,41 @@ pub enum GameLogEvent {
         mission_id: String,
         objective: FirstObjective,
     },
-    /// A mission of an **active** contract ended in game. Never acted on automatically.
+    /// A mission of an **active** contract ended in game. The backend never finalises: the
+    /// frontend acts only on `MISSION_STATE_COMPLETED` and only per `complete_from_game`.
     Ended {
         mission_id: String,
         state: String,
         at: Option<String>,
         contract_id: i64,
+        /// The "Complete contracts finished in game" setting when the event was read.
+        complete_from_game: CompleteFromGame,
     },
+}
+
+/// The "Complete contracts finished in game" setting, as carried by an end event.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum CompleteFromGame {
+    /// Off: a hint with Mark complete (Task 10 behaviour).
+    #[default]
+    Off,
+    Ask,
+    Automatic,
+}
+
+impl CompleteFromGame {
+    pub fn from_settings(settings: &crate::settings::AppSettings) -> Self {
+        use crate::settings::CompleteFromGameMode;
+        match (
+            settings.complete_from_game,
+            settings.complete_from_game_mode,
+        ) {
+            (false, _) => Self::Off,
+            (true, CompleteFromGameMode::Ask) => Self::Ask,
+            (true, CompleteFromGameMode::Automatic) => Self::Automatic,
+        }
+    }
 }
 
 /// The status line under the Game.log path.

@@ -5,15 +5,17 @@ import { capacityState, formatPercent, type ContractsSummary as Summary } from "
 interface ContractsSummaryProps {
   /** `null` while loading or on a list error: shows "—" instead of zeros. */
   summary: Summary | null;
-  /** Selected ship capacity in whole SCU; `null` until a ship catalog exists. */
+  /** Selected ship capacity in whole SCU; `null` = no ship selected. */
   capacityScu: number | null;
+  /** "C2 Hercules · 696 SCU" for the selected ship. */
+  shipLabel?: string | null;
 }
 
 /**
  * Operational summary strip: active contracts, total SCU, ship capacity.
  * One row at >= 990 px of app width; wraps below that.
  */
-export function ContractsSummary({ summary, capacityScu }: ContractsSummaryProps) {
+export function ContractsSummary({ summary, capacityScu, shipLabel = null }: ContractsSummaryProps) {
   return (
     <section
       aria-label="Contracts summary"
@@ -31,7 +33,7 @@ export function ContractsSummary({ summary, capacityScu }: ContractsSummaryProps
         )}
       </Stat>
       <div className="col-span-2 border-t border-line px-4 py-3 min-[990px]:col-span-1 min-[990px]:border-t-0">
-        <CapacityMeter activeScuMilli={summary?.totalScuMilli ?? null} capacityScu={capacityScu} />
+        <CapacityMeter activeScuMilli={summary?.totalScuMilli ?? null} capacityScu={capacityScu} shipLabel={shipLabel} />
       </div>
     </section>
   );
@@ -60,6 +62,8 @@ interface CapacityMeterProps {
   activeScuMilli: number | null;
   /** Ship capacity in whole SCU; `null` = no ship selected. */
   capacityScu: number | null;
+  /** "C2 Hercules · 696 SCU"; replaces the plain "Ship capacity" label when set. */
+  shipLabel?: string | null;
 }
 
 /**
@@ -67,13 +71,22 @@ interface CapacityMeterProps {
  * error. Over 100 % shows the real percentage with a full bar and a
  * restrained accent; it never warns or blocks.
  */
-export function CapacityMeter({ activeScuMilli, capacityScu }: CapacityMeterProps) {
+export function CapacityMeter({ activeScuMilli, capacityScu, shipLabel = null }: CapacityMeterProps) {
   const state = activeScuMilli === null ? null : capacityState(activeScuMilli, capacityScu);
   const known = state?.kind === "known" ? state : null;
   return (
     <div className="flex h-full min-w-0 flex-col justify-center">
       <div className="flex items-baseline justify-between gap-3">
-        <p className="label-tech">Ship capacity</p>
+        <p className="label-tech min-w-0 truncate" title={shipLabel ?? undefined}>
+          {shipLabel ? (
+            <>
+              <span className="sr-only">Ship capacity: </span>
+              {shipLabel}
+            </>
+          ) : (
+            "Ship capacity"
+          )}
+        </p>
         <p
           className={[
             "font-mono text-sm whitespace-nowrap tabular-nums",
@@ -99,7 +112,7 @@ export function CapacityMeter({ activeScuMilli, capacityScu }: CapacityMeterProp
         {...(known
           ? {
               role: "meter",
-              "aria-label": "Ship capacity used",
+              "aria-label": shipLabel ? `${shipLabel} capacity used` : "Ship capacity used",
               "aria-valuemin": 0,
               "aria-valuemax": 100,
               "aria-valuenow": Math.round(known.percent),

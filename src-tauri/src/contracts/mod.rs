@@ -3,6 +3,7 @@
 pub mod edit;
 pub mod finalize;
 pub mod models;
+pub mod reactivate;
 pub mod repository;
 pub mod validation;
 

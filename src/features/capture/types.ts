@@ -1,6 +1,8 @@
 /** Persisted settings, as the backend serialises them (snake_case field names). */
 export type CaptureSource = "star_citizen_window" | "full_display";
 
+export type CompleteFromGameMode = "ask" | "automatic";
+
 export interface AppSettings {
   game_log_monitoring_enabled: boolean;
   game_log_path: string | null;
@@ -10,6 +12,9 @@ export interface AppSettings {
   capture_on_add_contract: boolean;
   capture_shortcut: string | null;
   auto_capture_on_accept: boolean;
+  /** Complete contracts the game reports as completed (requires monitoring). */
+  complete_from_game: boolean;
+  complete_from_game_mode: CompleteFromGameMode;
   selected_ship_id: string | null;
   automatic_update_checks: boolean;
   contract_grouping: string;

@@ -10,7 +10,7 @@ use tauri::{AppHandle, Emitter, Manager, Runtime};
 use super::patterns::{parse_line, STATE_COMPLETED};
 use super::tail::{Tail, TailError};
 use super::tracker::{RawObjective, TrackedEvent, Tracker};
-use super::{FirstObjective, GameLogEvent, WatchStatus};
+use super::{CompleteFromGame, FirstObjective, GameLogEvent, WatchStatus};
 use crate::database::DatabaseState;
 use crate::parser::References;
 
@@ -24,6 +24,7 @@ pub struct WatchConfig {
     pub enabled: bool,
     pub path: Option<String>,
     pub auto_capture: bool,
+    pub complete: CompleteFromGame,
 }
 
 #[derive(Debug)]
@@ -98,12 +99,33 @@ pub fn mission_known(conn: &Connection, mission_id: &str) -> rusqlite::Result<bo
 
 /// The active contract carrying this MissionId, if any.
 pub fn active_contract_for(conn: &Connection, mission_id: &str) -> rusqlite::Result<Option<i64>> {
+    Ok(active_contract_with_time(conn, mission_id)?.map(|(id, _)| id))
+}
+
+/// The active contract carrying this MissionId, with its `accepted_at` (UTC ms).
+fn active_contract_with_time(
+    conn: &Connection,
+    mission_id: &str,
+) -> rusqlite::Result<Option<(i64, i64)>> {
     conn.query_row(
-        "SELECT id FROM contracts WHERE game_mission_id = ?1 AND status = 'active' ORDER BY id LIMIT 1",
+        "SELECT id, accepted_at FROM contracts WHERE game_mission_id = ?1 AND status = 'active' ORDER BY id LIMIT 1",
         [mission_id],
-        |r| r.get(0),
+        |r| Ok((r.get(0)?, r.get(1)?)),
     )
     .optional()
+}
+
+/// Game.log timestamp (`2026-11-19T12:10:58.978Z`) as UTC ms. None when it does not parse.
+pub fn log_time_ms(at: &str) -> Option<i64> {
+    chrono::DateTime::parse_from_rfc3339(at)
+        .ok()
+        .map(|t| t.timestamp_millis())
+}
+
+/// An end event older than the contract's acceptance belongs to an earlier session and is
+/// ignored. A missing or unreadable timestamp is not a reason to drop it.
+pub fn ended_before_accept(at: Option<&str>, accepted_at_ms: i64) -> bool {
+    at.and_then(log_time_ms).is_some_and(|t| t < accepted_at_ms)
 }
 
 fn resolve_objective(raw: RawObjective, refs: &References) -> FirstObjective {
@@ -128,6 +150,7 @@ pub fn to_app_events(
     conn: &Connection,
     events: Vec<TrackedEvent>,
     auto_capture: bool,
+    complete: CompleteFromGame,
 ) -> Vec<GameLogEvent> {
     let mut refs: Option<References> = None;
     let mut out = Vec::new();
@@ -172,12 +195,18 @@ pub fn to_app_events(
                     // State names only (no ids, no personal data): collected for later patches.
                     eprintln!("[cargo-line] Game.log: mission ended with state {state}");
                 }
-                if let Ok(Some(contract_id)) = active_contract_for(conn, &mission_id) {
+                if let Ok(Some((contract_id, accepted_at))) =
+                    active_contract_with_time(conn, &mission_id)
+                {
+                    if ended_before_accept(at.as_deref(), accepted_at) {
+                        continue;
+                    }
                     out.push(GameLogEvent::Ended {
                         mission_id,
                         state,
                         at,
                         contract_id,
+                        complete_from_game: complete,
                     });
                 }
             }
@@ -220,7 +249,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) {
                             }
                             let events = tracker.flush();
                             if !events.is_empty() {
-                                emit_events(&app, events, config.auto_capture);
+                                emit_events(&app, events, &config);
                             }
                             WatchStatus::Watching { path }
                         }
@@ -241,13 +270,13 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
-fn emit_events<R: Runtime>(app: &AppHandle<R>, events: Vec<TrackedEvent>, auto_capture: bool) {
+fn emit_events<R: Runtime>(app: &AppHandle<R>, events: Vec<TrackedEvent>, config: &WatchConfig) {
     let db_state = app.state::<DatabaseState>();
     let Ok(db) = db_state.wait_ready(READY_TIMEOUT) else {
         return;
     };
     let Ok(conn) = db.connection() else { return };
-    let app_events = to_app_events(&conn, events, auto_capture);
+    let app_events = to_app_events(&conn, events, config.auto_capture, config.complete);
     drop(conn);
     for event in app_events {
         let _ = app.emit(EVENT_NAME, event);
@@ -260,5 +289,6 @@ pub fn configure_from_settings(state: &GameLogState, settings: &crate::settings:
         enabled: settings.game_log_monitoring_enabled,
         path: settings.game_log_path.clone(),
         auto_capture: settings.auto_capture_on_accept,
+        complete: CompleteFromGame::from_settings(settings),
     });
 }

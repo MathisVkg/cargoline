@@ -99,7 +99,11 @@ export type CommandError =
   /** A screenshot could not be taken; manual entry is unaffected. */
   | { kind: "capture"; reason: CaptureFailure; message: string }
   /** Text recognition failed or was cancelled; manual entry is unaffected. */
-  | { kind: "ocr"; reason: OcrFailure; message: string };
+  | { kind: "ocr"; reason: OcrFailure; message: string }
+  /** The ship id is not in the catalog. */
+  | { kind: "unknownShip"; message: string; shipId: string }
+  /** An Undo of a completion was refused; nothing changed. */
+  | { kind: "cannotReactivate"; message: string; reason: "empty" | "notFound" | "notCompleted" | "tooOld"; id: number | null };
 
 /** Why text recognition did not return a result (typed by the backend). */
 export type OcrFailure = "engineMissing" | "timeout" | "noPanel" | "cancelled" | "failed";

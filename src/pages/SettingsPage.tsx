@@ -3,7 +3,9 @@ import { getVersion } from "@tauri-apps/api/app";
 import { RefreshCw } from "lucide-react";
 import { DisabledButton, PageContainer, PageHeader, Tag } from "../components/ui";
 import { getSettings, updateCaptureSettings } from "../features/capture/api";
-import type { CaptureSettingsInput, CaptureSource } from "../features/capture/types";
+import type { AppSettings, CaptureSettingsInput, CaptureSource, CompleteFromGameMode } from "../features/capture/types";
+import { getShipCatalogInfo } from "../features/ships/api";
+import { catalogLine } from "../features/ships/model";
 import { describeError, toCommandError } from "../features/contracts/api";
 import {
   announceSettingsChanged,
@@ -27,7 +29,7 @@ export function SettingsPage() {
         <PageHeader
           index="04"
           title="Settings"
-          description="Game and OCR Capture settings are saved on this computer. Updates and the ship catalog are placeholders in this version."
+          description="Game and OCR Capture settings are saved on this computer. Updates are a placeholder in this version."
         />
         <div className="flex flex-col gap-6">
           <GameSection game={game} />
@@ -42,6 +44,24 @@ export function SettingsPage() {
 
 type GameLogSettings = ReturnType<typeof useGameLogSettings>;
 
+const DEFAULT_GAME_LOG: GameLogSettingsInput = {
+  monitoring: false,
+  path: null,
+  autoCapture: false,
+  completeFromGame: false,
+  completeFromGameMode: "ask",
+};
+
+function gameLogInput(s: AppSettings): GameLogSettingsInput {
+  return {
+    monitoring: s.game_log_monitoring_enabled,
+    path: s.game_log_path,
+    autoCapture: s.auto_capture_on_accept,
+    completeFromGame: s.complete_from_game,
+    completeFromGameMode: s.complete_from_game_mode,
+  };
+}
+
 /** The Game group's stored values, the watcher status, and saving (all or nothing). */
 function useGameLogSettings() {
   const [value, setValue] = useState<GameLogSettingsInput | null>(null);
@@ -55,7 +75,7 @@ function useGameLogSettings() {
     getSettings()
       .then((s) => {
         if (cancelled) return;
-        setValue({ monitoring: s.game_log_monitoring_enabled, path: s.game_log_path, autoCapture: s.auto_capture_on_accept });
+        setValue(gameLogInput(s));
         setPathText(s.game_log_path ?? "");
       })
       .catch((e) => !cancelled && setError(describeError(toCommandError(e))));
@@ -74,7 +94,7 @@ function useGameLogSettings() {
   const save = (next: GameLogSettingsInput) => {
     updateGameLogSettings(next)
       .then((s) => {
-        setValue({ monitoring: s.game_log_monitoring_enabled, path: s.game_log_path, autoCapture: s.auto_capture_on_accept });
+        setValue(gameLogInput(s));
         setPathText(s.game_log_path ?? "");
         setError(null);
         announceSettingsChanged();
@@ -108,7 +128,7 @@ function GameSection({ game }: { game: GameLogSettings }) {
   const pathId = useId();
   const { value, pathText, setPathText, error, status, save } = game;
   const ready = value !== null;
-  const current = value ?? { monitoring: false, path: null, autoCapture: false };
+  const current = value ?? DEFAULT_GAME_LOG;
   // Detect / Browse feedback, always shown next to the buttons (never silent).
   const [note, setNote] = useState<Note | null>(null);
   const [choices, setChoices] = useState<FoundLog[]>([]);
@@ -220,11 +240,27 @@ function GameSection({ game }: { game: GameLogSettings }) {
           </p>
         </div>
       </Row>
-      <Row label="Ship catalog" hint="Community-sourced, bundled offline.">
-        <span className="text-sm text-dim">Not bundled yet · 0 ships</span>
+      <Row label="Ship catalog" hint="Bundled offline; cargo capacities for the top-bar ship selector.">
+        <CatalogLine />
       </Row>
     </SettingsSection>
   );
+}
+
+function CatalogLine() {
+  const [text, setText] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    getShipCatalogInfo()
+      .then((info) => !cancelled && setText(catalogLine(info)))
+      .catch(() => !cancelled && setFailed(true));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  if (failed) return <span className="text-sm text-danger">Ship catalog could not be loaded</span>;
+  return <span className="text-sm break-words text-fg">{text ?? "—"}</span>;
 }
 
 function SmallButton({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: ReactNode }) {
@@ -441,7 +477,60 @@ function OcrSection({ game }: { game: GameLogSettings }) {
           onChange={(on) => game.value && game.save({ ...game.value, autoCapture: on })}
         />
       </Row>
+      <Row
+        label="Complete contracts finished in game"
+        hint={
+          game.value?.monitoring
+            ? "Only for contracts saved with their in-game mission. Abandoned or failed missions are never closed for you."
+            : "Needs Game.log monitoring (Game group)."
+        }
+      >
+        <Switch
+          label="Complete contracts finished in game"
+          checked={!!game.value?.completeFromGame}
+          disabled={!game.value?.monitoring}
+          onChange={(on) => game.value && game.save({ ...game.value, completeFromGame: on })}
+        />
+      </Row>
+      {game.value?.monitoring && game.value.completeFromGame && (
+        <CompleteModeChoice
+          mode={game.value.completeFromGameMode}
+          onChange={(mode) => game.value && game.save({ ...game.value, completeFromGameMode: mode })}
+        />
+      )}
     </SettingsSection>
+  );
+}
+
+const COMPLETE_MODES: { id: CompleteFromGameMode; label: string; hint: string }[] = [
+  { id: "ask", label: "Ask me first", hint: "Opens a confirmation listing the contracts the game reports as completed." },
+  { id: "automatic", label: "Automatically", hint: "Marks them complete without asking. You can undo for 30 seconds." },
+];
+
+function CompleteModeChoice({ mode, onChange }: { mode: CompleteFromGameMode; onChange: (mode: CompleteFromGameMode) => void }) {
+  const name = useId();
+  return (
+    <fieldset className="px-4 py-3 sm:pl-8">
+      <legend className="sr-only">When the game reports a contract completed</legend>
+      <div className="flex flex-col gap-2">
+        {COMPLETE_MODES.map((m) => (
+          <label key={m.id} className="flex cursor-pointer items-start gap-2.5">
+            <input
+              type="radio"
+              name={name}
+              value={m.id}
+              checked={mode === m.id}
+              onChange={() => onChange(m.id)}
+              className="mt-0.5 size-4 shrink-0 accent-(--color-accent)"
+            />
+            <span className="min-w-0">
+              <span className="block text-sm text-fg">{m.label}</span>
+              <span className="block text-xs break-words text-dim">{m.hint}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 
@@ -477,8 +566,8 @@ function AboutSection() {
       <Row label="Licenses & legal notices">
         <Tag>Pending</Tag>
       </Row>
-      <Row label="Ship data attribution" hint="Community sources will be credited here.">
-        <Tag>No data bundled</Tag>
+      <Row label="Ship data attribution" hint="Unofficial; not affiliated with Cloud Imperium Games.">
+        <span className="text-sm break-words text-muted">Ship data from the Star Citizen Wiki API (api.star-citizen.wiki)</span>
       </Row>
     </SettingsSection>
   );

@@ -13,6 +13,7 @@ pub mod ocr;
 pub mod parser;
 pub mod reference;
 pub mod settings;
+pub mod ships;
 
 use database::{Database, DatabaseState, DATABASE_FILE_NAME};
 use tauri::{Manager, Runtime};
@@ -64,7 +65,13 @@ pub fn run() {
             commands::get_game_log_status,
             commands::detect_game_log_path,
             commands::game_log_browse_start,
-            commands::update_capture_shortcut
+            commands::update_capture_shortcut,
+            commands::reactivate_contracts,
+            commands::list_ships,
+            commands::get_selected_ship,
+            commands::set_selected_ship,
+            commands::set_ship_favorite,
+            commands::get_ship_catalog_info
         ])
         .run(tauri::generate_context!())
         .expect("error while running Cargo Line");
@@ -88,6 +95,20 @@ fn start_database<R: Runtime>(app: &tauri::AppHandle<R>) {
             match &outcome {
                 Ok(db) => {
                     eprintln!("[cargo-line] database ready at {}", db.path().display());
+                    // The bundled ship catalog is upserted before commands can read it
+                    // (idempotent; ships that left the list are hidden, never deleted).
+                    match ships::bundled().and_then(|list| {
+                        let mut conn = db.connection().map_err(|e| e.to_string())?;
+                        ships::sync_catalog(&mut conn, list, database::now_utc_ms())
+                            .map_err(|e| e.to_string())
+                    }) {
+                        Ok(r) if r.upserted > 0 || r.removed > 0 => eprintln!(
+                            "[cargo-line] ship catalog synced: {} updated, {} removed",
+                            r.upserted, r.removed
+                        ),
+                        Ok(_) => {}
+                        Err(e) => eprintln!("[cargo-line] ship catalog not loaded: {e}"),
+                    }
                     // Game.log monitoring starts only if it was switched on in the settings.
                     if let Ok(saved) = db
                         .connection()

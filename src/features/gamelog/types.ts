@@ -10,7 +10,17 @@ export type GameLogEvent =
   | { kind: "accepted"; missionId: string; title: string; at: string | null; objective: FirstObjective | null; autoCapture: boolean }
   | { kind: "objective"; missionId: string; objective: FirstObjective }
   /** A mission of an active contract ended in game. */
-  | { kind: "ended"; missionId: string; state: string; at: string | null; contractId: number };
+  | {
+      kind: "ended";
+      missionId: string;
+      state: string;
+      at: string | null;
+      contractId: number;
+      /** "Complete contracts finished in game" when the event was read. */
+      completeFromGame: CompleteFromGame;
+    };
+
+export type CompleteFromGame = "off" | "ask" | "automatic";
 
 export type AcceptedEvent = Extract<GameLogEvent, { kind: "accepted" }>;
 
@@ -25,6 +35,8 @@ export interface GameLogSettingsInput {
   monitoring: boolean;
   path: string | null;
   autoCapture: boolean;
+  completeFromGame: boolean;
+  completeFromGameMode: "ask" | "automatic";
 }
 
 export const MISSION_STATE_COMPLETED = "MISSION_STATE_COMPLETED";

@@ -10,6 +10,17 @@ pub enum CaptureSource {
     FullDisplay,
 }
 
+/// What to do when Game.log reports a contract completed (Task 11 Part B).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum CompleteFromGameMode {
+    /// Open a confirmation listing the contracts the game reports as completed.
+    #[default]
+    Ask,
+    /// Mark them complete without asking (with a 30 s Undo).
+    Automatic,
+}
+
 /// How the Contracts page groups active contracts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -48,6 +59,10 @@ pub struct AppSettings {
     /// Capture automatically when Game.log reports an accepted contract.
     /// Requires Game.log monitoring. Off by default.
     pub auto_capture_on_accept: bool,
+    /// Complete contracts that Game.log reports as completed. Requires Game.log monitoring.
+    /// Off by default (the hint with a Mark complete button stays as before).
+    pub complete_from_game: bool,
+    pub complete_from_game_mode: CompleteFromGameMode,
     /// Informational ship selection (catalog id). Never linked to contracts or runs.
     pub selected_ship_id: Option<String>,
     /// Opt-in automatic update checks. Off by default.
@@ -65,6 +80,8 @@ impl Default for AppSettings {
             capture_on_add_contract: true,
             capture_shortcut: None,
             auto_capture_on_accept: false,
+            complete_from_game: false,
+            complete_from_game_mode: CompleteFromGameMode::Ask,
             selected_ship_id: None,
             automatic_update_checks: false,
             contract_grouping: ContractGrouping::ByLocation,
@@ -203,6 +220,12 @@ impl AppSettings {
         if self.auto_capture_on_accept && !self.game_log_monitoring_enabled {
             return Err(invalid(
                 "auto_capture_on_accept",
+                "requires Game.log monitoring to be enabled",
+            ));
+        }
+        if self.complete_from_game && !self.game_log_monitoring_enabled {
+            return Err(invalid(
+                "complete_from_game",
                 "requires Game.log monitoring to be enabled",
             ));
         }

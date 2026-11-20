@@ -12,6 +12,7 @@ use crate::capture::service::{self as capture_service, ServiceError};
 use crate::capture::storage::CaptureInfo;
 use crate::capture::CaptureError;
 use crate::contracts::finalize::{self, FinalStatus, FinalizeError};
+use crate::contracts::reactivate::{self, ReactivateError};
 use crate::contracts::validation::validate_new_contract;
 use crate::contracts::{
     repository, AcceptanceTime, ContractDetail, NewContractInput, ValidationIssue,
@@ -21,7 +22,10 @@ use crate::database::{DatabaseError, DatabaseState};
 use crate::gamelog::service::GameLogState;
 use crate::ocr::{service as ocr_service, OcrError, OcrResult};
 use crate::reference::{self, ReferenceCommodity, ReferenceLocation};
-use crate::settings::{self, AppSettings, CaptureSource, ContractGrouping, SettingsError};
+use crate::settings::{
+    self, AppSettings, CaptureSource, CompleteFromGameMode, ContractGrouping, SettingsError,
+};
+use crate::ships::{self, CatalogInfo, SelectedShip, ShipEntry, ShipError};
 
 /// How long a command waits for startup database initialization.
 const READY_TIMEOUT: Duration = Duration::from_secs(10);
@@ -63,6 +67,54 @@ pub enum CommandError {
     },
     /// Text recognition failed or was cancelled. Manual entry is unaffected.
     Ocr { reason: OcrFailure, message: String },
+    /// The ship id is not in the catalog (or no longer listed).
+    UnknownShip { message: String, ship_id: String },
+    /// An Undo of a completion was refused; nothing changed.
+    CannotReactivate {
+        message: String,
+        reason: ReactivateFailure,
+        id: Option<i64>,
+    },
+}
+
+/// Why `reactivate_contracts` refused.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ReactivateFailure {
+    Empty,
+    NotFound,
+    NotCompleted,
+    TooOld,
+}
+
+impl From<ShipError> for CommandError {
+    fn from(error: ShipError) -> Self {
+        match error {
+            ShipError::Unknown(ship_id) => Self::UnknownShip {
+                message: format!("Unknown ship: {ship_id}"),
+                ship_id,
+            },
+            ShipError::Sqlite(e) => Self::Database { message: e.0 },
+        }
+    }
+}
+
+impl From<ReactivateError> for CommandError {
+    fn from(error: ReactivateError) -> Self {
+        let message = error.to_string();
+        let (reason, id) = match error {
+            ReactivateError::Empty => (ReactivateFailure::Empty, None),
+            ReactivateError::NotFound(id) => (ReactivateFailure::NotFound, Some(id)),
+            ReactivateError::NotCompleted { id, .. } => (ReactivateFailure::NotCompleted, Some(id)),
+            ReactivateError::TooOld(id) => (ReactivateFailure::TooOld, Some(id)),
+            ReactivateError::Sqlite(message) => return Self::Database { message },
+        };
+        Self::CannotReactivate {
+            message,
+            reason,
+            id,
+        }
+    }
 }
 
 /// Why text recognition did not return a result.
@@ -417,6 +469,94 @@ pub async fn finalize_active_contracts(
     .await
 }
 
+/// Undo of a recent completion: sets the given `completed` contracts back to active, all or
+/// nothing. Only completions within the last 5 minutes; run, ticks and cargo are untouched.
+#[tauri::command]
+pub async fn reactivate_contracts(
+    app: AppHandle,
+    ids: Vec<i64>,
+) -> Result<Vec<ContractDetail>, CommandError> {
+    run_blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let db = state.wait_ready(READY_TIMEOUT)?;
+        let mut conn = db.connection()?;
+        Ok(reactivate::reactivate_contracts(
+            &mut conn,
+            &ids,
+            crate::database::now_utc_ms(),
+        )?)
+    })
+    .await
+}
+
+/* --------------------------------------------------------------- Ships */
+
+/// Listed catalog ships, alphabetical, with the favourite flag.
+#[tauri::command]
+pub async fn list_ships(app: AppHandle) -> Result<Vec<ShipEntry>, CommandError> {
+    run_blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let db = state.wait_ready(READY_TIMEOUT)?;
+        let conn = db.connection()?;
+        Ok(ships::list_ships(&conn)?)
+    })
+    .await
+}
+
+/// The selected ship; a selection no longer listed is cleared and reported `stale`.
+#[tauri::command]
+pub async fn get_selected_ship(app: AppHandle) -> Result<SelectedShip, CommandError> {
+    run_blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let db = state.wait_ready(READY_TIMEOUT)?;
+        let mut conn = db.connection()?;
+        Ok(ships::get_selected(&mut conn)?)
+    })
+    .await
+}
+
+/// Selects a ship (`null` = no ship). Informational only: never touches contracts or runs.
+#[tauri::command]
+pub async fn set_selected_ship(
+    app: AppHandle,
+    id: Option<String>,
+) -> Result<SelectedShip, CommandError> {
+    run_blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let db = state.wait_ready(READY_TIMEOUT)?;
+        let mut conn = db.connection()?;
+        Ok(ships::set_selected(&mut conn, id.as_deref())?)
+    })
+    .await
+}
+
+/// Stars or unstars a ship. Never changes the selection.
+#[tauri::command]
+pub async fn set_ship_favorite(
+    app: AppHandle,
+    id: String,
+    favorite: bool,
+) -> Result<ShipEntry, CommandError> {
+    run_blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let db = state.wait_ready(READY_TIMEOUT)?;
+        let conn = db.connection()?;
+        Ok(ships::set_favorite(
+            &conn,
+            &id,
+            favorite,
+            crate::database::now_utc_ms(),
+        )?)
+    })
+    .await
+}
+
+/// `N ships · game <version> · Star Citizen Wiki` for Settings.
+#[tauri::command]
+pub fn get_ship_catalog_info() -> Result<CatalogInfo, CommandError> {
+    ships::catalog_info().map_err(|message| CommandError::Internal { message })
+}
+
 /// Edits an active contract with the same input and validation as
 /// `create_contract`. The id, status, run and acceptance time never change.
 #[tauri::command]
@@ -581,6 +721,11 @@ pub struct GameLogSettingsInput {
     pub monitoring: bool,
     pub path: Option<String>,
     pub auto_capture: bool,
+    /// Complete contracts the game reports as completed (requires monitoring).
+    #[serde(default)]
+    pub complete_from_game: bool,
+    #[serde(default)]
+    pub complete_from_game_mode: CompleteFromGameMode,
 }
 
 /// Saves the Game.log settings and applies them to the watcher right away (no restart).
@@ -619,6 +764,8 @@ pub async fn update_game_log_settings(
             s.game_log_monitoring_enabled = input.monitoring;
             s.game_log_path = path;
             s.auto_capture_on_accept = input.monitoring && input.auto_capture;
+            s.complete_from_game = input.monitoring && input.complete_from_game;
+            s.complete_from_game_mode = input.complete_from_game_mode;
         })
         .map_err(|e| match e {
             SettingsError::Invalid(invalid) => validation(invalid.field, &invalid.reason),

@@ -18,6 +18,7 @@ import { ActionMenu } from "../features/contracts/ActionMenu";
 import { AddContractModal } from "../features/contracts/AddContractModal";
 import type { Dispatch } from "react";
 import { GameLogNotices } from "../features/gamelog/GameLogNotices";
+import { bannerText } from "../features/gamelog/completion";
 import type { FlowAction, FlowState } from "../features/gamelog/flow";
 import { ConfirmFinalizeDialog, type ConfirmOutcome } from "../features/contracts/ConfirmFinalizeDialog";
 import { ContractsSummary } from "../features/contracts/ContractsSummary";
@@ -29,6 +30,7 @@ import {
   describeError,
   finalizeActiveContracts,
   getContractGrouping,
+  reactivateContracts,
   listActiveContracts,
   setContractGrouping,
   setStopReminder,
@@ -56,6 +58,8 @@ import {
   type ExpansionState,
 } from "../features/contracts/grouping";
 import { summaryForList } from "../features/contracts/summary";
+import { shipLabel, STALE_SHIP_NOTICE } from "../features/ships/model";
+import { dismissStale, useShips } from "../features/ships/store";
 import type { CommandError, ContractDetail, ContractGrouping } from "../features/contracts/types";
 
 const MODES: { id: ContractGrouping; label: string }[] = [
@@ -65,9 +69,6 @@ const MODES: { id: ContractGrouping; label: string }[] = [
 
 /** Location groups start open (operational view); contract groups start closed (review view). */
 const DEFAULT_EXPANDED: Record<ContractGrouping, boolean> = { by_location: true, by_contract: false };
-
-/** Selected ship capacity (whole SCU). No ship catalog yet, so always unknown. */
-const SELECTED_SHIP_CAPACITY_SCU: number | null = null;
 
 /** How long the success notice stays visible. */
 const NOTICE_MS = 6000;
@@ -102,6 +103,13 @@ export function ContractsPage({ flow, dispatch }: { flow: FlowState; dispatch: D
     // Only the edit modal opening or closing matters here.
   }, [editOpen]);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const ship = useShips();
+  const [undoing, setUndoing] = useState(false);
+
+  // The Ask dialog (complete from game) waits while a confirmation is open here.
+  useEffect(() => {
+    dispatch({ type: "blocking", open: pending !== null });
+  }, [pending !== null]);
 
   const refresh = useCallback(async () => {
     try {
@@ -122,6 +130,28 @@ export function ContractsPage({ flow, dispatch }: { flow: FlowState; dispatch: D
       cancelled = true;
     };
   }, [refresh]);
+
+  // Contracts finalised or reactivated from the Game.log flow: reload.
+  useEffect(() => {
+    if (flow.listVersion > 0) void refresh();
+  }, [flow.listVersion, refresh]);
+
+  const undoCompletion = async () => {
+    const banner = flow.banner;
+    if (!banner || undoing) return;
+    setUndoing(true);
+    try {
+      await reactivateContracts(banner.contractIds);
+      dispatch({ type: "undone", id: banner.id });
+      showNotice(banner.contractIds.length === 1 ? "Completion undone" : "Completions undone", "info");
+    } catch (thrown) {
+      dispatch({ type: "bannerDismiss", id: banner.id });
+      showNotice(`Undo failed: ${describeError(toCommandError(thrown))}`, "info");
+      void refresh();
+    } finally {
+      setUndoing(false);
+    }
+  };
 
   const chooseMode = (next: ContractGrouping) => {
     if (next === mode) return;
@@ -277,7 +307,26 @@ export function ContractsPage({ flow, dispatch }: { flow: FlowState; dispatch: D
         }
       />
 
-      <ContractsSummary summary={summary} capacityScu={SELECTED_SHIP_CAPACITY_SCU} />
+      <ContractsSummary
+        summary={summary}
+        capacityScu={ship.selected?.cargoScu ?? null}
+        shipLabel={ship.selected ? shipLabel(ship.selected) : null}
+      />
+
+      {ship.stale && (
+        <div role="status" className="mb-3 flex items-center gap-2 border-l-2 border-line-strong bg-surface px-3 py-1.5 text-sm">
+          <Info className="size-4 shrink-0 text-muted" aria-hidden="true" />
+          <span className="min-w-0 flex-1 break-words text-fg">{STALE_SHIP_NOTICE}. No ship is selected.</span>
+          <button
+            type="button"
+            onClick={dismissStale}
+            aria-label="Dismiss notice"
+            className="grid size-6 shrink-0 place-items-center rounded-sm text-dim hover:bg-raised hover:text-fg"
+          >
+            <X className="size-3.5" aria-hidden="true" />
+          </button>
+        </div>
+      )}
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex flex-wrap items-center gap-2">
@@ -362,6 +411,31 @@ export function ContractsPage({ flow, dispatch }: { flow: FlowState; dispatch: D
           <button
             type="button"
             onClick={() => setNotice(null)}
+            aria-label="Dismiss notice"
+            className="grid size-6 shrink-0 place-items-center rounded-sm text-dim hover:bg-raised hover:text-fg"
+          >
+            <X className="size-3.5" aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
+      {flow.banner && (
+        <div role="status" className="mb-3 flex items-center gap-2 border-l-2 border-pickup bg-surface px-3 py-1.5 text-sm">
+          <CircleCheck className="size-4 shrink-0 text-pickup" aria-hidden="true" />
+          <span className="min-w-0 flex-1 break-words text-fg">{bannerText(flow.banner)}</span>
+          {flow.banner.undo && (
+            <button
+              type="button"
+              onClick={() => void undoCompletion()}
+              disabled={undoing}
+              className="h-7 rounded-sm border border-line-strong px-2.5 text-xs font-medium text-fg transition-colors duration-150 hover:bg-raised disabled:opacity-50"
+            >
+              {undoing ? "Undoing…" : "Undo"}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => flow.banner && dispatch({ type: "bannerDismiss", id: flow.banner.id })}
             aria-label="Dismiss notice"
             className="grid size-6 shrink-0 place-items-center rounded-sm text-dim hover:bg-raised hover:text-fg"
           >

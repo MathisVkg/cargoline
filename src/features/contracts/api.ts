@@ -69,7 +69,10 @@ export function describeError(error: CommandError): string {
       return "The active contract list changed in the meantime. Nothing was changed; the list has been reloaded.";
     case "capture":
     case "ocr":
+    case "cannotReactivate":
       return error.message;
+    case "unknownShip":
+      return "This ship is not in the catalog.";
   }
 }
 
@@ -116,6 +119,14 @@ export function abandonContract(id: number): Promise<ContractDetail> {
  */
 export function finalizeActiveContracts(ids: number[], status: FinalStatus): Promise<ContractDetail[]> {
   return call<ContractDetail[]>("finalize_active_contracts", { ids, status });
+}
+
+/**
+ * Undo of a recent completion: sets `completed` contracts (finished within 5 minutes) back to
+ * active, all or nothing. Run, ticks and cargo are untouched.
+ */
+export function reactivateContracts(ids: number[]): Promise<ContractDetail[]> {
+  return call<ContractDetail[]>("reactivate_contracts", { ids });
 }
 
 /** Edits an active contract (same input and validation as createContract). */
