@@ -28,3 +28,18 @@ export interface GameLogSettingsInput {
 }
 
 export const MISSION_STATE_COMPLETED = "MISSION_STATE_COMPLETED";
+
+/** A Game.log found by Detect (Task 10.1). */
+export interface FoundLog {
+  path: string;
+  channel: string;
+  modifiedMs: number | null;
+  /** process = the running game; launcher = the RSI Launcher log; folders = common install folders. */
+  method: "process" | "launcher" | "folders";
+}
+
+export interface DetectResult {
+  /** Ranked: LIVE first, then the most recently modified. */
+  found: FoundLog[];
+  message: string;
+}

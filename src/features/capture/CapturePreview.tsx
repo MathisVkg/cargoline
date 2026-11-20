@@ -18,9 +18,14 @@ import {
   ocrToStart,
   reduceCapture,
   shouldAutoCapture,
+  shouldRetry,
+  betterReading,
   type CaptureModel,
 } from "./captureModel";
-import type { OcrRegion } from "./types";
+import type { CaptureInfo, OcrRegion } from "./types";
+
+/** Delay before the single "screen unknown" retry. */
+export const RETRY_DELAY_MS = 1000;
 
 export interface ContractCapture {
   model: CaptureModel;
@@ -50,6 +55,7 @@ export function useContractCapture(mode: "add" | "edit", options: { force?: bool
   const inFlightRef = useRef(false);
   /** The capture whose OCR is running (cancelled on recapture / close). */
   const readingRef = useRef<number | null>(null);
+  const retryTimerRef = useRef<number | undefined>(undefined);
 
   const cancelReading = () => {
     const reading = readingRef.current;
@@ -102,6 +108,53 @@ export function useContractCapture(mode: "add" | "edit", options: { force?: bool
       });
   }, []);
 
+  // Screen unknown but objectives read: capture once more after 1.0 s (the panel may still have
+  // been animating) and keep the better reading. Once per opening; the first capture is kept
+  // until the second one wins.
+  const retryWanted = shouldRetry(model);
+  useEffect(() => {
+    if (!retryWanted || !model.capture || !model.ocr.parsed) return;
+    const first = model.capture;
+    const firstParsed = model.ocr.parsed;
+    dispatch({ type: "retryStart" });
+    retryTimerRef.current = window.setTimeout(() => {
+      // The user recaptured or closed meanwhile: nothing to retry.
+      if (closedRef.current || inFlightRef.current || captureIdRef.current !== first.id) {
+        dispatch({ type: "retryFinished" });
+        return;
+      }
+      inFlightRef.current = true;
+      let second: CaptureInfo | null = null;
+      const drop = (c: CaptureInfo | null) => c && void discardCapture(c.id).catch(() => undefined);
+      captureScreenshot(null) // not replacing the first capture: it may still be the better one
+        .then((stored) => {
+          second = stored;
+          return readContractFromCapture(stored.id);
+        })
+        .then(({ ocr, parsed }) => {
+          if (closedRef.current || captureIdRef.current !== first.id) {
+            drop(second);
+            dispatch({ type: "retryFinished" });
+          } else if (betterReading(firstParsed, parsed) === "second") {
+            captureIdRef.current = second!.id;
+            drop(first);
+            dispatch({ type: "retryFinished", better: { capture: second!, result: ocr, parsed } });
+          } else {
+            drop(second);
+            dispatch({ type: "retryFinished" });
+          }
+        })
+        .catch(() => {
+          drop(second);
+          dispatch({ type: "retryFinished" });
+        })
+        .finally(() => {
+          inFlightRef.current = false;
+        });
+    }, RETRY_DELAY_MS);
+    // The timer is cleared on close (below), not when this effect re-runs.
+  }, [retryWanted, model.capture, model.ocr.parsed]);
+
   // Start OCR for each new capture.
   const pendingOcr = ocrToStart(model);
   useEffect(() => {
@@ -141,6 +194,7 @@ export function useContractCapture(mode: "add" | "edit", options: { force?: bool
       cancelled = true;
       if (timer !== undefined) window.clearTimeout(timer);
       closedRef.current = true;
+      window.clearTimeout(retryTimerRef.current);
       cancelReading(); // before deleting the file it reads
       const unsaved = savedRef.current ? null : captureIdRef.current;
       captureIdRef.current = null;
@@ -253,7 +307,7 @@ function HeaderButton({
   );
 }
 
-const REGION_LABEL = { title: "Title", reward: "Reward", objectives: "Objectives" } as const;
+const REGION_LABEL = { title: "Title", reward: "Reward", objectives: "Objectives", details: "Details" } as const;
 
 /** Troubleshooting view (collapsed): each region's raw lines and confidences. */
 function RecognisedText({ regions }: { regions: OcrRegion[] }) {

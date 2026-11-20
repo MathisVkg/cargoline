@@ -1,7 +1,8 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { open } from "@tauri-apps/plugin-dialog";
 import { call } from "../contracts/api";
 import type { AppSettings } from "../capture/types";
-import type { GameLogEvent, GameLogSettingsInput, WatchStatus } from "./types";
+import type { DetectResult, GameLogEvent, GameLogSettingsInput, WatchStatus } from "./types";
 
 /** Saves the Game group (applied to the watcher right away). */
 export function updateGameLogSettings(input: GameLogSettingsInput): Promise<AppSettings> {
@@ -12,9 +13,29 @@ export function getGameLogStatus(): Promise<WatchStatus> {
   return call<WatchStatus>("get_game_log_status");
 }
 
-/** `…\LIVE\Game.log` from the running StarCitizen.exe. */
-export function detectGameLogPath(): Promise<string> {
-  return call<string>("detect_game_log_path");
+/** Every Game.log found without opening the game (ranked) and the message to show. */
+export function detectGameLogPath(): Promise<DetectResult> {
+  return call<DetectResult>("detect_game_log_path");
+}
+
+/** The folder Browse… opens in (current path folder, else a game channel folder). */
+export function gameLogBrowseStart(current: string | null): Promise<string | null> {
+  return call<string | null>("game_log_browse_start", { current });
+}
+
+/** Native open-file dialog (tauri-plugin-dialog). Null when cancelled. */
+export async function browseForGameLog(defaultPath: string | null): Promise<string | null> {
+  const picked = await open({
+    title: "Select Game.log",
+    defaultPath: defaultPath ?? undefined,
+    multiple: false,
+    directory: false,
+    filters: [
+      { name: "Game.log", extensions: ["log"] },
+      { name: "All files", extensions: ["*"] },
+    ],
+  });
+  return typeof picked === "string" ? picked : null;
 }
 
 export function updateCaptureShortcut(shortcut: string | null): Promise<AppSettings> {

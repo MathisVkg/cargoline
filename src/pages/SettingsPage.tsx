@@ -7,13 +7,16 @@ import type { CaptureSettingsInput, CaptureSource } from "../features/capture/ty
 import { describeError, toCommandError } from "../features/contracts/api";
 import {
   announceSettingsChanged,
+  browseForGameLog,
   detectGameLogPath,
+  gameLogBrowseStart,
   getGameLogStatus,
   onGameLogStatus,
   updateCaptureShortcut,
   updateGameLogSettings,
 } from "../features/gamelog/api";
-import type { GameLogSettingsInput, WatchStatus } from "../features/gamelog/types";
+import type { FoundLog, GameLogSettingsInput, WatchStatus } from "../features/gamelog/types";
+import { choiceLabel, detectOutcome } from "../features/gamelog/detect";
 import { shortcutFromKey, shortcutProblem } from "../features/gamelog/shortcut";
 
 export function SettingsPage() {
@@ -99,34 +102,63 @@ function statusText(status: WatchStatus): { text: string; tone: string } {
   }
 }
 
+type Note = { tone: "info" | "success" | "warning"; text: string };
+
 function GameSection({ game }: { game: GameLogSettings }) {
   const pathId = useId();
-  const { value, pathText, setPathText, error, setError, status, save } = game;
+  const { value, pathText, setPathText, error, status, save } = game;
   const ready = value !== null;
   const current = value ?? { monitoring: false, path: null, autoCapture: false };
+  // Detect / Browse feedback, always shown next to the buttons (never silent).
+  const [note, setNote] = useState<Note | null>(null);
+  const [choices, setChoices] = useState<FoundLog[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  const usePath = (path: string, text: string) => {
+    setPathText(path);
+    setChoices([]);
+    setNote({ tone: "success", text });
+    if (path !== current.path) save({ ...current, path });
+  };
   const savePath = (path: string) => {
     const trimmed = path.trim();
     if ((trimmed || null) === current.path) return;
     save({ ...current, path: trimmed || null, monitoring: trimmed ? current.monitoring : false });
   };
-  const detect = () =>
+  const detect = () => {
+    setBusy(true);
+    setChoices([]);
+    setNote({ tone: "info", text: "Looking for Game.log…" });
     detectGameLogPath()
-      .then((path) => {
-        setPathText(path);
-        save({ ...current, path });
+      .then((result) => {
+        const outcome = detectOutcome(result);
+        if (outcome.kind === "none") setNote({ tone: "warning", text: outcome.message });
+        else if (outcome.kind === "one") {
+          const same = outcome.log.path === current.path;
+          usePath(outcome.log.path, same ? `${outcome.message} — already set` : outcome.message);
+        } else {
+          setChoices(outcome.choices);
+          setNote({ tone: "info", text: outcome.message });
+        }
       })
-      .catch((e) => {
-        const failure = toCommandError(e);
-        setError(failure.kind === "validation" ? failure.issues.map((i) => i.message).join(" ") : describeError(failure));
-      });
+      .catch((e) => setNote({ tone: "warning", text: `Detect failed: ${describeError(toCommandError(e))}` }))
+      .finally(() => setBusy(false));
+  };
+  const browse = () => {
+    setBusy(true);
+    gameLogBrowseStart(current.path ?? (pathText.trim() || null))
+      .catch(() => null)
+      .then((start) => browseForGameLog(start))
+      .then((picked) => {
+        if (picked) usePath(picked, "Selected");
+      })
+      .catch((e) => setNote({ tone: "warning", text: `Browse failed: ${describeError(toCommandError(e))}` }))
+      .finally(() => setBusy(false));
+  };
   const shown = statusText(status);
+  const noteTone = { info: "text-muted", success: "text-pickup", warning: "text-accent" } as const;
   return (
     <SettingsSection index="01" title="Game">
-      {error && (
-        <p role="alert" className="px-4 py-2 text-sm break-words text-danger">
-          {error}
-        </p>
-      )}
       <Row label="Game.log monitoring" hint="Optional. Reads new lines only; never required for managing contracts.">
         <Switch
           label="Game.log monitoring"
@@ -135,31 +167,54 @@ function GameSection({ game }: { game: GameLogSettings }) {
           onChange={(on) => save({ ...current, path: pathText.trim() || current.path, monitoring: on })}
         />
       </Row>
-      <Row label="Game.log file path" hint="Usually …\StarCitizen\LIVE\Game.log. Detect reads it from the running game.">
-        <div className="flex w-full flex-col gap-1 sm:w-80">
-          <div className="flex gap-2">
-            <input
-              id={pathId}
-              type="text"
-              value={pathText}
-              disabled={!ready}
-              onChange={(e) => setPathText(e.target.value)}
-              onBlur={(e) => savePath(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && savePath(e.currentTarget.value)}
-              aria-label="Game.log file path"
-              placeholder="Not configured"
-              spellCheck={false}
-              className="h-9 w-full min-w-0 rounded-sm border border-line bg-raised px-3 text-sm text-fg placeholder:text-placeholder disabled:cursor-not-allowed"
-            />
-            <button
-              type="button"
-              onClick={detect}
-              disabled={!ready}
-              className="h-9 shrink-0 rounded-sm border border-line px-3 text-sm font-medium text-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-50"
-            >
+      <Row label="Game.log file path" hint="Usually …\StarCitizen\LIVE\Game.log. Detect finds it; Browse picks it.">
+        <div className="flex w-full flex-col gap-1 sm:w-96">
+          <input
+            id={pathId}
+            type="text"
+            value={pathText}
+            disabled={!ready}
+            onChange={(e) => setPathText(e.target.value)}
+            onBlur={(e) => savePath(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && savePath(e.currentTarget.value)}
+            aria-label="Game.log file path"
+            placeholder="Not configured"
+            spellCheck={false}
+            className="h-9 w-full min-w-0 rounded-sm border border-line bg-raised px-3 text-sm text-fg placeholder:text-placeholder disabled:cursor-not-allowed"
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <SmallButton onClick={detect} disabled={!ready || busy}>
               Detect
-            </button>
+            </SmallButton>
+            <SmallButton onClick={browse} disabled={!ready || busy}>
+              Browse…
+            </SmallButton>
+            {note && (
+              <span role="status" aria-live="polite" className={`min-w-0 flex-1 text-xs break-words ${noteTone[note.tone]}`}>
+                {note.text}
+              </span>
+            )}
           </div>
+          {choices.length > 0 && (
+            <ul aria-label="Game.log files found" className="flex flex-col gap-1">
+              {choices.map((c, i) => (
+                <li key={c.path} className="flex items-center gap-2 rounded-sm border border-line bg-raised px-2 py-1">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs text-fg">{choiceLabel(c, i === 0)}</span>
+                    <span className="block truncate text-[11px] text-dim" title={c.path}>
+                      {c.path}
+                    </span>
+                  </span>
+                  <SmallButton onClick={() => usePath(c.path, `Using ${c.channel}`)}>Use</SmallButton>
+                </li>
+              ))}
+            </ul>
+          )}
+          {error && (
+            <p role="alert" className="text-xs break-words text-danger">
+              {error}
+            </p>
+          )}
           <p className={`text-xs ${shown.tone}`} role="status" aria-live="polite">
             {shown.text}
           </p>
@@ -169,6 +224,19 @@ function GameSection({ game }: { game: GameLogSettings }) {
         <span className="text-sm text-dim">Not bundled yet · 0 ships</span>
       </Row>
     </SettingsSection>
+  );
+}
+
+function SmallButton({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="h-8 shrink-0 rounded-sm border border-line px-3 text-sm font-medium text-muted transition-colors duration-150 hover:border-line-strong hover:text-fg disabled:opacity-50"
+    >
+      {children}
+    </button>
   );
 }
 

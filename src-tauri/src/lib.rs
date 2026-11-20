@@ -21,6 +21,7 @@ use tauri::{Manager, Runtime};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(DatabaseState::default())
         .manage(capture::CaptureState::default())
         .manage(ocr::service::OcrState::default())
@@ -62,6 +63,7 @@ pub fn run() {
             commands::update_game_log_settings,
             commands::get_game_log_status,
             commands::detect_game_log_path,
+            commands::game_log_browse_start,
             commands::update_capture_shortcut
         ])
         .run(tauri::generate_context!())

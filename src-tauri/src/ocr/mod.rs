@@ -24,7 +24,7 @@ use serde::Serialize;
 
 use engine::{CancelToken, Engine};
 use image::Image;
-use layout::{button_state, find_anchors, looks_like_objectives, plan_regions, PlannedRegion};
+use layout::{find_anchors, looks_like_objectives, plan_regions, screen_state, PlannedRegion};
 use tsv::{parse_tsv, Mapping};
 
 /// Page segmentation modes (see `tesseract --help-psm`).
@@ -115,6 +115,8 @@ pub enum RegionKind {
     Title,
     Reward,
     Objectives,
+    /// The Details text (only the max container size is read from it).
+    Details,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -136,10 +138,10 @@ pub struct OcrRegion {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub enum ButtonState {
-    /// `ABANDON`: the Accepted tab.
+pub enum ScreenState {
+    /// The reward card reads `Contract Deadline`: the Accepted tab.
     Accepted,
-    /// `ACCEPT OFFER`: the Offers tab (amounts may still change after accepting).
+    /// The reward card reads `Contract Availability`: the Offers tab (amounts may still change).
     Offer,
     Unknown,
 }
@@ -147,8 +149,8 @@ pub enum ButtonState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
 pub struct AnchorsFound {
     pub header: bool,
+    pub details: bool,
     pub reward: bool,
-    pub button: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
@@ -166,7 +168,8 @@ pub struct OcrResult {
     pub width: u32,
     pub height: u32,
     pub anchors: AnchorsFound,
-    pub button: ButtonState,
+    /// From the reward card (never from the bottom buttons).
+    pub screen: ScreenState,
     pub regions: Vec<OcrRegion>,
     pub timings: OcrTimings,
 }
@@ -259,7 +262,7 @@ pub fn recognize_image(
         width: frame.width,
         height: frame.height,
         anchors: anchors.found(),
-        button: button_state(&anchors),
+        screen: screen_state(&anchors),
         regions,
         timings: OcrTimings {
             load_ms,
@@ -281,6 +284,8 @@ fn read_region(
     let (image, scale) = match region.kind {
         RegionKind::Objectives => (crop.gray().double(), 2.0),
         RegionKind::Title | RegionKind::Reward => (crop, 1.0),
+        // Details: grayscale is enough for "<n> SCU"; no upscale keeps the time budget.
+        RegionKind::Details => (crop.gray(), 1.0),
     };
     let tsv = engine.recognize_tsv(&image, PSM_BLOCK, cancel)?;
     let mapping = Mapping {

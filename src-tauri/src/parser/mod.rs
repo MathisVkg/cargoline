@@ -7,12 +7,13 @@
 //! (filled, to be verified) or `missing` (left empty), with a short reason.
 
 pub mod clean;
+pub mod details;
 pub mod objectives;
 pub mod resolve;
 
 use serde::Serialize;
 
-use crate::ocr::{ButtonState, OcrResult, RegionKind};
+use crate::ocr::{OcrResult, RegionKind, ScreenState};
 use clean::{tokens_of, Token};
 pub use resolve::{Catalog, Resolution};
 
@@ -103,12 +104,15 @@ pub struct ParsedRequirement {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ParsedContract {
-    pub screen: ButtonState,
+    pub screen: ScreenState,
     pub title: Field<String>,
     pub reward: Field<u64>,
     pub requirements: Vec<ParsedRequirement>,
     /// Things that could not be read reliably; reported, never guessed.
     pub problems: Vec<String>,
+    /// Max container size from the Details text, the same for every requirement. Empty without a
+    /// flag when the text states none; empty and flagged when it states several.
+    pub max_box_scu: Field<u32>,
 }
 
 /// Names to resolve against: the bundled lists plus the user's own.
@@ -139,11 +143,19 @@ pub fn parse_contract(ocr: &OcrResult, refs: &References) -> ParsedContract {
     let mut problems = Vec::new();
     let requirements = objectives::parse_objectives(&objectives_lines, refs, &mut problems);
     ParsedContract {
-        screen: ocr.button,
+        screen: ocr.screen,
         title: parse_title(&region_tokens(RegionKind::Title)),
-        reward: parse_reward(&region_tokens(RegionKind::Reward), ocr.button),
+        reward: parse_reward(&region_tokens(RegionKind::Reward), ocr.screen),
         requirements,
         problems,
+        max_box_scu: details::parse_max_box(
+            &ocr.regions
+                .iter()
+                .filter(|r| r.kind == RegionKind::Details)
+                .flat_map(|r| r.lines.iter().map(|l| l.text.as_str()))
+                .collect::<Vec<_>>()
+                .join(" "),
+        ),
     }
 }
 
@@ -210,7 +222,7 @@ fn reward_number(text: &str) -> Option<u64> {
 /// - empty and flagged when no token matches, below 40, or below 60 on the Offers screen;
 /// - filled but flagged below 60, or when it has no thousands separator (in-game rewards are
 ///   written `59,500`, so a bare `250` is likely a fragment).
-pub fn parse_reward(lines: &[Vec<Token>], screen: ButtonState) -> Field<u64> {
+pub fn parse_reward(lines: &[Vec<Token>], screen: ScreenState) -> Field<u64> {
     let found = lines
         .iter()
         .flat_map(|line| {
@@ -230,7 +242,7 @@ pub fn parse_reward(lines: &[Vec<Token>], screen: ButtonState) -> Field<u64> {
         return Field::missing(REASON_NO_REWARD);
     };
     if conf < REWARD_MIN_CONFIDENCE
-        || (screen == ButtonState::Offer && conf < OFFER_REWARD_MIN_CONFIDENCE)
+        || (screen == ScreenState::Offer && conf < OFFER_REWARD_MIN_CONFIDENCE)
     {
         return Field::missing(REASON_NO_REWARD);
     }

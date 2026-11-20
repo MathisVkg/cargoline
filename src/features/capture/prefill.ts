@@ -3,7 +3,7 @@ import { emptyRequirement, emptyStop, isDraftEmpty, type ContractDraft, type Req
 import { contractRef } from "../contracts/grouping.ts";
 import { parseRewardAuec, parseScuMilli } from "../contracts/scu.ts";
 import type { ContractDetail } from "../contracts/types.ts";
-import type { OcrButtonState, ParsedContract, ParsedField, ParsedStop } from "./types.ts";
+import type { ParsedContract, ParsedField, ParsedStop } from "./types.ts";
 
 /**
  * Hints for fields read with a problem, keyed by stable row keys (not list positions), so
@@ -18,6 +18,7 @@ export const flagKeys = {
   reward: "rewardAuec",
   commodity: (requirementKey: string) => `${requirementKey}:commodityName`,
   total: (requirementKey: string) => `${requirementKey}:quantityScu`,
+  maxBox: (requirementKey: string) => `${requirementKey}:maxBoxSizeScu`,
   location: (stopKey: string) => `${stopKey}:locationName`,
   stopScu: (stopKey: string) => `${stopKey}:quantityScu`,
 } as const;
@@ -56,11 +57,14 @@ export function draftFromParsed(parsed: ParsedContract): { draft: ContractDraft;
       ...base,
       commodityName: text(r.commodity),
       quantityScu: text(r.totalScu),
+      // The Details text's max container size applies to every requirement (Task 10.1).
+      maxBoxSizeScu: parsed.maxBoxScu ? text(parsed.maxBoxScu) : "",
       pickups: stops(r.pickups, "No pickup line was read"),
       deliveries: stops(r.deliveries, "No delivery was read"),
     };
     flag(flagKeys.commodity(requirement.key), r.commodity);
     flag(flagKeys.total(requirement.key), r.totalScu);
+    if (parsed.maxBoxScu) flag(flagKeys.maxBox(requirement.key), parsed.maxBoxScu);
     return requirement;
   });
   flag(flagKeys.title, parsed.title);
@@ -80,6 +84,7 @@ function valuesByKey(draft: ContractDraft): Map<string, string> {
   for (const r of draft.requirements) {
     values.set(flagKeys.commodity(r.key), r.commodityName);
     values.set(flagKeys.total(r.key), r.quantityScu);
+    values.set(flagKeys.maxBox(r.key), r.maxBoxSizeScu);
     for (const s of [...r.pickups, ...r.deliveries]) {
       values.set(flagKeys.location(s.key), s.locationName);
       values.set(flagKeys.stopScu(s.key), s.quantityScu);
@@ -138,12 +143,30 @@ export function duplicateHint(contract: ContractDetail): string {
 }
 
 /** The non-blocking banner for the screen the text was read from. */
-export function screenBanner(screen: OcrButtonState): string | null {
-  switch (screen) {
+export const BANNER_OFFER = "Read from the Offers screen — amounts can change after accepting. Recapture from the Accepted tab.";
+export const BANNER_UNKNOWN_MILD = "Couldn't confirm this is the Accepted tab — check the amounts";
+export const BANNER_UNKNOWN_STRONG = "Contract screen not recognised — check every field.";
+
+/** Title, reward and objectives all read, and no parser problems. */
+export function readCleanly(parsed: ParsedContract): boolean {
+  return (
+    parsed.problems.length === 0 &&
+    parsed.title.value !== null &&
+    parsed.reward.value !== null &&
+    parsed.requirements.length > 0
+  );
+}
+
+/**
+ * The banner for the screen the text was read from. Unknown screen: the milder wording when the
+ * reading itself was clean, the stronger one when it had problems.
+ */
+export function screenBanner(parsed: Pick<ParsedContract, "screen" | "problems" | "title" | "reward" | "requirements">): string | null {
+  switch (parsed.screen) {
     case "offer":
-      return "Read from the Offers screen — amounts can change after accepting. Recapture from the Accepted tab.";
+      return BANNER_OFFER;
     case "unknown":
-      return "Contract screen not recognised — check every field.";
+      return readCleanly(parsed as ParsedContract) ? BANNER_UNKNOWN_MILD : BANNER_UNKNOWN_STRONG;
     case "accepted":
       return null;
   }

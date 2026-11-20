@@ -113,22 +113,95 @@ fn exe_name(pid: u32) -> String {
         .unwrap_or_default()
 }
 
+/// `SystemProcessIdInformation`: a process's image name by pid, without a process handle.
+const SYSTEM_PROCESS_ID_INFORMATION:
+    windows::Wdk::System::SystemInformation::SYSTEM_INFORMATION_CLASS =
+    windows::Wdk::System::SystemInformation::SYSTEM_INFORMATION_CLASS(88);
+
+#[repr(C)]
+struct ProcessIdInformation {
+    process_id: windows::Win32::Foundation::HANDLE,
+    image_name: windows::Win32::Foundation::UNICODE_STRING,
+}
+
+/// `C:\…\StarCitizen.exe` for a pid, via `NtQuerySystemInformation`: read-only, **no process
+/// handle**, so anti-cheat protection of the game process does not matter.
+pub fn image_path_without_handle(pid: u32) -> Option<String> {
+    let mut buf = vec![0u16; 2048];
+    let mut info = ProcessIdInformation {
+        process_id: windows::Win32::Foundation::HANDLE(pid as usize as *mut c_void),
+        image_name: windows::Win32::Foundation::UNICODE_STRING {
+            Length: 0,
+            MaximumLength: (buf.len() * 2) as u16,
+            Buffer: PWSTR(buf.as_mut_ptr()),
+        },
+    };
+    let status = unsafe {
+        windows::Wdk::System::SystemInformation::NtQuerySystemInformation(
+            SYSTEM_PROCESS_ID_INFORMATION,
+            &mut info as *mut ProcessIdInformation as *mut c_void,
+            std::mem::size_of::<ProcessIdInformation>() as u32,
+            std::ptr::null_mut(),
+        )
+    };
+    if status.is_err() {
+        return None;
+    }
+    let len = (info.image_name.Length as usize / 2).min(buf.len());
+    nt_to_dos_path(&String::from_utf16_lossy(&buf[..len]))
+}
+
+/// The drive letters present (`GetLogicalDrives`).
+pub fn logical_drives() -> Vec<char> {
+    let mask = unsafe { windows::Win32::Storage::FileSystem::GetLogicalDrives() };
+    (0..26u8)
+        .filter(|i| mask & (1 << i) != 0)
+        .map(|i| (b'A' + i) as char)
+        .collect()
+}
+
+/// `\Device\HarddiskVolume3\Program Files\…` → `C:\Program Files\…`.
+fn nt_to_dos_path(nt: &str) -> Option<String> {
+    for drive in logical_drives() {
+        let name: Vec<u16> = format!("{drive}:").encode_utf16().chain([0]).collect();
+        let mut target = [0u16; 512];
+        let n = unsafe {
+            windows::Win32::Storage::FileSystem::QueryDosDeviceW(
+                windows::core::PCWSTR(name.as_ptr()),
+                Some(&mut target),
+            )
+        };
+        if n == 0 {
+            continue;
+        }
+        let device = wide_to_string(&target);
+        if let Some(rest) = nt.strip_prefix(&device) {
+            if rest.starts_with('\\') {
+                return Some(format!("{drive}:{rest}"));
+            }
+        }
+    }
+    None
+}
+
 /// The executable of the running Star Citizen game window, e.g.
-/// `…\StarCitizen\LIVE\Bin64\StarCitizen.exe` (Game.log detection). None if not running.
+/// `…\StarCitizen\LIVE\Bin64\StarCitizen.exe` (Game.log detection). Found from the game's
+/// window and pid, then [`image_path_without_handle`]: the game's process is never opened.
+/// None if not running.
 pub fn star_citizen_exe_path() -> Option<std::path::PathBuf> {
     let mut found = None;
     for window in star_citizen_windows().ok()? {
-        if !window
-            .exe
-            .eq_ignore_ascii_case(super::select::STAR_CITIZEN_EXE)
-        {
-            continue;
-        }
         let mut pid = 0u32;
         unsafe { GetWindowThreadProcessId(hwnd(window.handle), Some(&mut pid)) };
-        if let Some(path) = image_path(pid) {
-            found = Some(std::path::PathBuf::from(path));
-            break;
+        if let Some(path) = image_path_without_handle(pid) {
+            let is_game = std::path::Path::new(&path).file_name().is_some_and(|n| {
+                n.to_string_lossy()
+                    .eq_ignore_ascii_case(super::select::STAR_CITIZEN_EXE)
+            });
+            if is_game {
+                found = Some(std::path::PathBuf::from(path));
+                break;
+            }
         }
     }
     found

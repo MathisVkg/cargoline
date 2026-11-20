@@ -27,6 +27,8 @@ thiserror = "2"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # PNG encoding of screenshots (already in the dependency tree through Tauri's codegen).
 png = "0.18"
+# Native open-file dialog for the Game.log path (Task 10.1; only `dialog:allow-open` is granted).
+tauri-plugin-dialog = "=2.8.4"
 
 # Native screen capture: the same `windows` version Tauri already uses (no second copy).
 [target.'cfg(windows)'.dependencies]
@@ -36,6 +38,7 @@ windows = { version = "0.62", features = [
   "Graphics_Capture",
   "Graphics_DirectX",
   "Graphics_DirectX_Direct3D11",
+  "Wdk_System_SystemInformation",
   "Win32_Foundation",
   "Win32_Graphics_Direct3D",
   "Win32_Graphics_Direct3D11",
@@ -43,6 +46,7 @@ windows = { version = "0.62", features = [
   "Win32_Graphics_Dxgi",
   "Win32_Graphics_Dxgi_Common",
   "Win32_Graphics_Gdi",
+  "Win32_Storage_FileSystem",
   "Win32_Storage_Xps",
   "Win32_System_Threading",
   "Win32_System_WinRT",

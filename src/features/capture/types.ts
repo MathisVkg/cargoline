@@ -57,7 +57,7 @@ export interface OcrLine {
   words: OcrWord[];
 }
 
-export type OcrRegionKind = "title" | "reward" | "objectives";
+export type OcrRegionKind = "title" | "reward" | "objectives" | "details";
 
 export interface OcrRegion {
   kind: OcrRegionKind;
@@ -67,14 +67,14 @@ export interface OcrRegion {
   lines: OcrLine[];
 }
 
-/** accepted = ABANDON button (Accepted tab); offer = ACCEPT OFFER (Offers tab). */
-export type OcrButtonState = "accepted" | "offer" | "unknown";
+/** From the reward card: accepted = "Contract Deadline" (Accepted tab); offer = "Contract Availability" (Offers tab). */
+export type ScreenState = "accepted" | "offer" | "unknown";
 
 export interface OcrResult {
   width: number;
   height: number;
-  anchors: { header: boolean; reward: boolean; button: boolean };
-  button: OcrButtonState;
+  anchors: { header: boolean; details: boolean; reward: boolean };
+  screen: ScreenState;
   regions: OcrRegion[];
   timings: { loadMs: number; anchorMs: number; regionsMs: number; totalMs: number };
 }
@@ -112,11 +112,13 @@ export interface ParsedRequirement {
 }
 
 export interface ParsedContract {
-  screen: OcrButtonState;
+  screen: ScreenState;
   title: ParsedField<string>;
   reward: ParsedField<number>;
   requirements: ParsedRequirement[];
   problems: string[];
+  /** Max container size from the Details text (every requirement); null + "ok" = none stated. */
+  maxBoxScu: ParsedField<number>;
 }
 
 export interface ContractReading {

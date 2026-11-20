@@ -636,34 +636,69 @@ pub fn get_game_log_status(app: AppHandle) -> crate::gamelog::WatchStatus {
     app.state::<GameLogState>().status()
 }
 
-/// Proposes `<channel>\\Game.log` from the running `<channel>\\Bin64\\StarCitizen.exe`
-/// (e.g. the LIVE folder).
+/// What Detect found: every `Game.log` (ranked: LIVE first, then most recent) and the message
+/// to show next to the button. Never an error: "none found" is a normal outcome.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DetectResult {
+    pub found: Vec<crate::gamelog::detect::FoundLog>,
+    pub message: String,
+}
+
+fn common_game_roots() -> Vec<std::path::PathBuf> {
+    #[cfg(windows)]
+    let drives = crate::capture::native::logical_drives();
+    #[cfg(not(windows))]
+    let drives: Vec<char> = Vec::new();
+    let program_files = std::env::var_os("ProgramFiles").map(std::path::PathBuf::from);
+    crate::gamelog::detect::common_roots(program_files.as_deref(), &drives)
+}
+
+/// Finds `Game.log` without opening the game's process (read-only):
+/// 1. the running `StarCitizen.exe` path (no process handle);
+/// 2. the RSI Launcher's log (`%APPDATA%\rsilauncher\logs\log.log`);
+/// 3. common install folders on every drive, for each channel (LIVE, PTU, EPTU, TECH-PREVIEW, HOTFIX).
 #[tauri::command]
-pub async fn detect_game_log_path() -> Result<String, CommandError> {
+pub async fn detect_game_log_path() -> Result<DetectResult, CommandError> {
+    use crate::gamelog::detect::{self, DetectMethod};
     run_blocking(|| {
+        let mut found = Vec::new();
         #[cfg(windows)]
-        let exe = crate::capture::native::star_citizen_exe_path();
-        #[cfg(not(windows))]
-        let exe: Option<std::path::PathBuf> = None;
-        let exe = exe.ok_or_else(|| {
-            validation(
-                "gameLogPath",
-                "Start Star Citizen first, then press Detect.",
-            )
-        })?;
-        let bin = exe.parent();
-        let channel = bin.and_then(|b| {
-            if b.file_name()
-                .is_some_and(|n| n.eq_ignore_ascii_case("Bin64"))
-            {
-                b.parent()
-            } else {
-                Some(b)
+        if let Some(exe) = crate::capture::native::star_citizen_exe_path() {
+            found.extend(detect::found_from_exe(&exe));
+        }
+        if let Some(appdata) = std::env::var_os("APPDATA") {
+            let log = std::path::Path::new(&appdata)
+                .join("rsilauncher")
+                .join("logs")
+                .join("log.log");
+            if let Ok(bytes) = std::fs::read(&log) {
+                let roots = detect::roots_from_launcher_log(&String::from_utf8_lossy(&bytes));
+                found.extend(detect::logs_in_roots(&roots, DetectMethod::Launcher));
             }
-        });
-        channel
-            .map(|c| c.join("Game.log").to_string_lossy().into_owned())
-            .ok_or_else(|| validation("gameLogPath", "Could not work out the game folder."))
+        }
+        found.extend(detect::logs_in_roots(
+            &common_game_roots(),
+            DetectMethod::Folders,
+        ));
+        let found = detect::rank(found);
+        let message = detect::detect_message(&found);
+        Ok(DetectResult { found, message })
+    })
+    .await
+}
+
+/// The folder Browse… opens in: the current path's folder, else the first existing game channel
+/// folder, else none (the system default).
+#[tauri::command]
+pub async fn game_log_browse_start(
+    current: Option<String>,
+) -> Result<Option<String>, CommandError> {
+    run_blocking(move || {
+        Ok(
+            crate::gamelog::detect::browse_start(current.as_deref(), &common_game_roots())
+                .map(|p| p.to_string_lossy().into_owned()),
+        )
     })
     .await
 }

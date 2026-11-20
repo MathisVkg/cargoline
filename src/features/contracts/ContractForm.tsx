@@ -198,6 +198,7 @@ function RequirementEditor({
             value={req.maxBoxSizeScu}
             onChange={(maxBoxSizeScu) => onChange({ ...req, maxBoxSizeScu })}
             error={issues.get(`${path}.maxBoxSizeScu`)}
+            hint={flags.get(flagKeys.maxBox(req.key))}
             placeholder="e.g. 8"
             inputMode="decimal"
           />

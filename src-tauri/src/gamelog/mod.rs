@@ -6,6 +6,7 @@
 //! - [`tail`]: polling file reader (start at the end, rotation, partial lines).
 //! - [`service`]: the background thread, its live config and status, and the Tauri events.
 
+pub mod detect;
 pub mod patterns;
 pub mod service;
 pub mod tail;

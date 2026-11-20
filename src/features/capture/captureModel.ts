@@ -23,6 +23,10 @@ export interface CaptureModel {
   closed: boolean;
   /** Text recognition of `capture` (restarted by every new capture). */
   ocr: OcrView;
+  /** The single "screen unknown" retry was used (once per opening, never a loop). */
+  retried: boolean;
+  /** The retry capture is running: the header says "Checking screen again…". */
+  checkingAgain: boolean;
 }
 
 export interface OcrView {
@@ -39,6 +43,9 @@ export type CaptureEvent =
   | { type: "configured"; auto: boolean; delayMs: number }
   | { type: "tick"; remainingMs: number }
   | { type: "start" }
+  /** The automatic retry (Task 10.1) started / finished; `better` replaces the reading if it won. */
+  | { type: "retryStart" }
+  | { type: "retryFinished"; better?: { capture: CaptureInfo; result: OcrResult; parsed: ParsedContract } }
   | { type: "succeeded"; capture: CaptureInfo }
   | { type: "failed"; reason: CaptureFailure | "other"; message: string }
   | { type: "closed" }
@@ -54,6 +61,8 @@ export const initialCaptureModel: CaptureModel = {
   error: null,
   closed: false,
   ocr: OCR_IDLE,
+  retried: false,
+  checkingAgain: false,
 };
 
 /** Edit mode never captures; Add mode captures automatically only when the setting is on. */
@@ -98,7 +107,42 @@ export function reduceCapture(model: CaptureModel, event: CaptureEvent): Capture
         ...model,
         ocr: { status: "error", result: null, parsed: null, error: { reason: event.reason, message: event.message } },
       };
+    case "retryStart":
+      return model.retried ? model : { ...model, retried: true, checkingAgain: true };
+    case "retryFinished":
+      if (!model.checkingAgain) return model;
+      if (!event.better) return { ...model, checkingAgain: false };
+      return {
+        ...model,
+        checkingAgain: false,
+        capture: event.better.capture,
+        ocr: { status: "done", result: event.better.result, parsed: event.better.parsed, error: null },
+      };
   }
+}
+
+/**
+ * Retry once (after 1.0 s) when the screen is unknown but objectives were read: the panel may
+ * still have been animating. Never on a recognised screen, never twice per opening.
+ */
+export function shouldRetry(model: CaptureModel): boolean {
+  const parsed = model.ocr.parsed;
+  return (
+    !model.closed &&
+    !model.retried &&
+    model.phase === "captured" &&
+    model.ocr.status === "done" &&
+    parsed !== null &&
+    parsed.screen === "unknown" &&
+    parsed.requirements.length >= 1
+  );
+}
+
+/** The better of two readings: a recognised screen first, then fewer problems; ties keep the first. */
+export function betterReading(first: ParsedContract, second: ParsedContract): "first" | "second" {
+  const recognised = (p: ParsedContract) => (p.screen === "unknown" ? 0 : 1);
+  if (recognised(second) !== recognised(first)) return recognised(second) > recognised(first) ? "second" : "first";
+  return second.problems.length < first.problems.length ? "second" : "first";
 }
 
 /** The capture whose OCR should start now (a new capture that has not been read yet). */
@@ -120,14 +164,15 @@ export function captureStatus(model: CaptureModel): { text: string; tone: Status
   if (model.phase === "captured" || (model.phase === "idle" && model.capture)) {
     const { ocr } = model;
     const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+    if (model.checkingAgain) return { text: "Checking screen again…", tone: "normal", busy: true };
     switch (ocr.status) {
       case "reading":
         return { text: "Reading text…", tone: "normal", busy: true };
       case "done": {
         const r = ocr.result!;
-        if (r.button === "accepted")
+        if (r.screen === "accepted")
           return { text: `Text read · Accepted contract (${seconds(r.timings.totalMs)})`, tone: "normal", busy: false };
-        if (r.button === "offer")
+        if (r.screen === "offer")
           return { text: "Text read · Offer screen — amounts may change after accepting", tone: "warning", busy: false };
         return { text: `Text read · Contract screen not recognised (${seconds(r.timings.totalMs)})`, tone: "warning", busy: false };
       }

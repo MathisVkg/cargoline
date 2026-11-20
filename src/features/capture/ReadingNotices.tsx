@@ -6,7 +6,7 @@ import type { ParsedContract } from "./types";
 
 /** Non-blocking notes at the top of the form about the reading that filled it. */
 export function ReadingBanners({ applied, duplicate }: { applied: ParsedContract | null; duplicate: ContractDetail | null }) {
-  const screen = applied ? screenBanner(applied.screen) : null;
+  const screen = applied ? screenBanner(applied) : null;
   const problems = applied?.problems ?? [];
   if (!screen && problems.length === 0 && !duplicate) return null;
   return (
