@@ -3,8 +3,10 @@
 // Rules:
 // 1. Stored `exact` box groups are used as they are (and any cargo they don't cover is filled
 //    with estimated boxes, so cargo is never dropped).
-// 2. Otherwise the largest allowed container = the smallest of: the requirement's max box,
-//    the selected ship's max container, 32 SCU; then the largest standard size not above it.
+// 2. Otherwise the largest allowed container = the requirement's max box (from Details or typed
+//    in), else 32 SCU; then the largest standard size not above it. The ship never changes the
+//    boxes (Task 13.2): the catalog's max container value is unreliable (Hermes and Ironclad
+//    report 1 SCU, Hull B and Hull C report 16 for grids that hold 32-SCU containers).
 // 3. Greedy fill, largest first. A fractional remainder becomes one extra 1-SCU box marked
 //    `partial` that carries exactly the remainder.
 // 4. Destinations: one delivery → that destination. Several deliveries with known quantities →
@@ -45,11 +47,10 @@ export function largestSizeAtMost(limitScu: number): number {
   return best;
 }
 
-/** The largest container allowed for a requirement. */
-export function allowedMaxScu(requirementMaxMilli: number | null, shipMaxScu: number | null): number {
+/** The largest container allowed for a requirement: its max box, else 32. Never the ship. */
+export function allowedMaxScu(requirementMaxMilli: number | null): number {
   let limit = MAX_CONTAINER_SCU;
   if (requirementMaxMilli !== null && requirementMaxMilli > 0) limit = Math.min(limit, requirementMaxMilli / MILLI);
-  if (shipMaxScu !== null && shipMaxScu > 0) limit = Math.min(limit, shipMaxScu);
   return largestSizeAtMost(limit);
 }
 
@@ -102,11 +103,11 @@ export function destinationParts(req: RequirementCargo): Part[] {
   return parts;
 }
 
-/** Estimated (or stored) boxes for every requirement, in requirement order. */
-export function estimateBoxes(reqs: readonly RequirementCargo[], shipMaxContainerScu: number | null): EstimatedBox[] {
+/** Estimated (or stored) boxes for every requirement, in requirement order. Ship-independent. */
+export function estimateBoxes(reqs: readonly RequirementCargo[]): EstimatedBox[] {
   const boxes: EstimatedBox[] = [];
   for (const req of reqs) {
-    const maxScu = allowedMaxScu(req.maxBoxScuMilli, shipMaxContainerScu);
+    const maxScu = allowedMaxScu(req.maxBoxScuMilli);
     const parts = destinationParts(req);
     let n = 0;
     const push = (b: { sizeScu: number; scuMilli: number; partial: boolean }, quality: EstimatedBox["quality"], part: Part) =>

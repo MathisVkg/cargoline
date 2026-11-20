@@ -69,11 +69,10 @@ export function CargoPage({ flow }: { flow: FlowState }) {
     sessionMode = m;
     setModeState(m);
   };
-  const shipMax = ship?.maxContainerScu ?? null;
   const shipCapacity = ship?.cargoScu ?? null;
   const boxes = useMemo<EstimatedBox[]>(
-    () => (list.status === "ready" ? estimateBoxes(requirementCargo(list.contracts), shipMax) : []),
-    [list, shipMax],
+    () => (list.status === "ready" ? estimateBoxes(requirementCargo(list.contracts)) : []),
+    [list],
   );
   const layout = useMemo(
     () => (list.status === "ready" ? layoutCargo(boxes, { mode, shipCapacityScu: shipCapacity }) : null),

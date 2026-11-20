@@ -5,7 +5,7 @@ import { formatScu } from "../contracts/scu";
 import { capacityState, formatPercent } from "../contracts/summary";
 import type { ShipEntry } from "../ships/types";
 import { colorKey, shade, type ColorMode, type EstimatedBox, type LegendEntry } from "./boxes";
-import { faces, project, viewBoxFor, type Layout, type Placed } from "./layout";
+import { ZOOM_MARGIN, drawnPlatforms, faces, project, viewBoxFor, type Layout, type Placed, type PlatformArea } from "./layout";
 import { activeSelection, highlightedBoxes, selectionId, type HighlightAction, type HighlightState } from "./highlight";
 
 const UNIT = 10;
@@ -116,14 +116,22 @@ export function CargoView({
                 dispatch({ type: "click", selection: item.box ? { kind: "box", id: item.box.id } : { kind: "group", key: item.colorKey } })
               }
             />
+            {layout.zoom && <PlatformOverview layout={layout} />}
             {tip && <Tooltip tip={tip} legend={layout.legend} />}
           </div>
 
-          {layout.mode === "blocks" && <p className="mt-2 text-xs text-muted">Simplified view — large cargo. Each colour is one block of its volume.</p>}
-          {layout.overflowFrom !== null && ship && (
+          {layout.mode === "blocks" && (
+            <p className="mt-2 text-xs text-muted">Simplified view — very large number of boxes. Each colour is one block of its volume.</p>
+          )}
+          {layout.zoom && (
+            <p className="mt-2 text-xs text-dim">
+              Zoomed to the cargo: the platform continues beyond the dashed edges (overview top right).
+            </p>
+          )}
+          {layout.overflowScuMilli > 0 && ship && (
             <p className="mt-2 flex items-start gap-1.5 text-xs text-accent">
               <TriangleAlert className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-              Above the ship's capacity: boxes with amber edges, in the amber zone, are beyond {ship.cargoScu.toLocaleString("en-US")} SCU. Nothing is blocked.
+              Above the ship's capacity: {formatScu(layout.overflowScuMilli)} SCU on the overflow platform. Nothing is blocked.
             </p>
           )}
           <ShipLine ship={ship} activeScuMilli={activeScuMilli} />
@@ -189,6 +197,75 @@ function ShipLine({ ship, activeScuMilli }: { ship: ShipEntry | null; activeScuM
   );
 }
 
+const pts = (list: [number, number, number][]) =>
+  list.map(([x, y, z]) => project(x, y, z, UNIT).map((v) => v.toFixed(2)).join(",")).join(" ");
+
+/** One platform's floor: grid, outline; the overflow platform is amber with its label. */
+function PlatformFloor({ platform: p, zoomed }: { platform: PlatformArea; zoomed: boolean }) {
+  const x1 = p.x + p.width;
+  const grid: string[] = [];
+  const step = p.width > 40 ? 4 : 2;
+  const line = (a: [number, number], b: [number, number]) => `M${a[0].toFixed(1)},${a[1].toFixed(1)}L${b[0].toFixed(1)},${b[1].toFixed(1)}`;
+  for (let x = p.x; x <= x1 + 1e-9; x += step) grid.push(line(project(x, 0, 0, UNIT), project(x, p.depth, 0, UNIT)));
+  for (let y = 0; y <= p.depth; y += step) grid.push(line(project(p.x, y, 0, UNIT), project(x1, y, 0, UNIT)));
+  const floor = pts([[p.x, 0, 0], [x1, 0, 0], [x1, p.depth, 0], [p.x, p.depth, 0]]);
+  if (p.kind === "overflow") {
+    const [lx, ly] = project(p.x + p.width / 2, p.depth, 0, UNIT);
+    return (
+      <g>
+        <polygon points={floor} fill="var(--color-accent)" fillOpacity={0.12} stroke="var(--color-accent)" strokeOpacity={0.85} strokeWidth={1.4} vectorEffect="non-scaling-stroke" />
+        <path d={grid.join("")} stroke="var(--color-accent)" strokeOpacity={0.18} fill="none" vectorEffect="non-scaling-stroke" />
+        <text x={lx} y={ly + UNIT * 1.6} textAnchor="middle" fontSize={UNIT * 1.05} className="font-mono" fill="var(--color-accent)">
+          Over capacity · {formatScu(p.scuMilli)} SCU
+        </text>
+      </g>
+    );
+  }
+  return (
+    <g>
+      <polygon points={floor} className="fill-raised stroke-line-strong" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+      <path d={grid.join("")} className="stroke-line" strokeWidth={1} fill="none" vectorEffect="non-scaling-stroke" />
+      {zoomed && (
+        // The platform continues beyond the zoomed region: dashed far edges.
+        <polyline
+          points={pts([[x1, 0, 0], [x1, p.depth, 0], [p.x, p.depth, 0]])}
+          fill="none"
+          className="stroke-muted"
+          strokeDasharray="5 4"
+          strokeWidth={1.2}
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
+    </g>
+  );
+}
+
+/** Top-down overview of the whole main platform with the cargo footprint, shown when zoomed. */
+function PlatformOverview({ layout }: { layout: Layout }) {
+  const main = layout.platforms[0];
+  const scale = 84 / main.width;
+  const w = main.width * scale;
+  const h = main.depth * scale;
+  const cw = Math.min(main.width, layout.cargoFootprint.width) * scale;
+  const ch = Math.min(main.depth, layout.cargoFootprint.depth) * scale;
+  const used = Math.round((100 * layout.cargoFootprint.width * layout.cargoFootprint.depth) / (main.width * main.depth));
+  return (
+    <figure className="pointer-events-none absolute top-1 right-1 m-0 rounded-sm border border-line bg-surface/90 px-2 py-1.5">
+      <svg width={w} height={h} viewBox={`-1 -1 ${w + 2} ${h + 2}`} aria-hidden="true" className="block">
+        <rect x={0} y={0} width={w} height={h} className="fill-raised stroke-line-strong" strokeWidth={1} />
+        {/* Front-left corner = bottom-left in this top-down sketch. */}
+        <rect x={0} y={h - ch} width={cw} height={ch} fill="var(--color-fg)" fillOpacity={0.55} />
+        <rect x={0} y={h - ch} width={Math.min(w, cw + ZOOM_MARGIN * scale)} height={Math.min(h, ch + ZOOM_MARGIN * scale)} fill="none" className="stroke-muted" strokeDasharray="2 2" strokeWidth={1} />
+      </svg>
+      <figcaption className="mt-1 text-[10px] leading-tight text-dim">
+        Platform {main.width} × {main.depth}
+        <br />
+        cargo floor {used} % · zoomed
+      </figcaption>
+    </figure>
+  );
+}
+
 /** The SVG is memoised on layout and highlight so hovering stays cheap. */
 const IsoSvg = memo(function IsoSvg({
   layout,
@@ -215,36 +292,12 @@ const IsoSvg = memo(function IsoSvg({
   onLeave: () => void;
   onClick: (item: Placed) => void;
 }) {
-  const { platform, extentX, overflowFrom } = layout;
-  const flat = (x0: number, x1: number) =>
-    [project(x0, 0, 0, UNIT), project(x1, 0, 0, UNIT), project(x1, platform.depth, 0, UNIT), project(x0, platform.depth, 0, UNIT)]
-      .map((p) => p.map((v) => v.toFixed(2)).join(","))
-      .join(" ");
-  const grid: string[] = [];
-  const step = platform.width > 40 ? 4 : 2;
-  for (let x = 0; x <= platform.width; x += step) {
-    const [a, b] = [project(x, 0, 0, UNIT), project(x, platform.depth, 0, UNIT)];
-    grid.push(`M${a[0].toFixed(1)},${a[1].toFixed(1)}L${b[0].toFixed(1)},${b[1].toFixed(1)}`);
-  }
-  for (let y = 0; y <= platform.depth; y += step) {
-    const [a, b] = [project(0, y, 0, UNIT), project(platform.width, y, 0, UNIT)];
-    grid.push(`M${a[0].toFixed(1)},${a[1].toFixed(1)}L${b[0].toFixed(1)},${b[1].toFixed(1)}`);
-  }
+  const viewBox = viewBoxFor(layout, UNIT);
   return (
-    <svg viewBox={viewBoxFor(layout, UNIT)} role="img" aria-label={label} className="block h-auto w-full select-none">
-      <polygon points={flat(0, platform.width)} className="fill-raised stroke-line-strong" strokeWidth={1} vectorEffect="non-scaling-stroke" />
-      <path d={grid.join("")} className="stroke-line" strokeWidth={1} fill="none" vectorEffect="non-scaling-stroke" />
-      {overflowFrom !== null && (
-        <polygon
-          points={flat(overflowFrom, extentX)}
-          fill="var(--color-accent)"
-          fillOpacity={0.14}
-          stroke="var(--color-accent)"
-          strokeOpacity={0.6}
-          strokeDasharray="4 3"
-          vectorEffect="non-scaling-stroke"
-        />
-      )}
+    <svg viewBox={viewBox} role="img" aria-label={label} className="block h-auto w-full select-none">
+      {drawnPlatforms(layout).map((p) => (
+        <PlatformFloor key={p.kind} platform={p} zoomed={p.kind === "main" && layout.zoom !== null} />
+      ))}
       {layout.items.map((item) => {
         const color = colors.get(item.colorKey) ?? "#8b93a1";
         const id = item.box ? `box:${item.box.id}` : `group:${item.colorKey}`;
