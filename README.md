@@ -43,14 +43,21 @@ npm install
 npm run tauri dev      # launches the desktop app with hot reload
 ```
 
-Headless checks (these open no windows):
+Headless checks (these open no windows). CI runs the same commands on every push and pull request
+to `main` (`.github/workflows/ci.yml`, Windows):
 
 ```bash
-npm run typecheck                         # TypeScript
-npm run build                             # production frontend build -> dist/
-cargo check --manifest-path src-tauri/Cargo.toml
-npm test                                          # frontend (node:test) + Rust tests
+npm ci
+npm run typecheck                                              # TypeScript
+npm run build                                                  # frontend -> dist/ (needed before cargo)
+npm run test:frontend                                          # frontend tests (node:test)
+cargo fmt --manifest-path src-tauri/Cargo.toml --check
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path src-tauri/Cargo.toml                # Rust tests
+npm test                                                       # both test suites
 ```
+
+Node is pinned in `.nvmrc` (Node 24: the frontend tests use its built-in TypeScript support).
 
 To build a release executable, run `npm run tauri build`. The executable is written to
 `src-tauri/target/release/cargo-line.exe`. Installer bundling is turned off for now.
@@ -70,7 +77,9 @@ src-tauri/      Rust backend (Tauri 2)
   src/settings/ Typed, validated persistent settings
   src/contracts/ Contract validation (authoritative) and transactional persistence
   src/commands.rs Tauri IPC commands: create_contract, list_active_contracts
-  tests/        Headless Rust tests (kept local, git-ignored)
+  tests/        Headless Rust tests
+tests/frontend/ Frontend unit tests (node:test)
+tools/catalog/  Generators for the bundled catalogs (see tools/catalog/README.md)
 ```
 
 - **Rust owns** business logic, local file IO, screenshot capture, OCR orchestration and SQLite. Only SQLite
@@ -82,9 +91,9 @@ src-tauri/      Rust backend (Tauri 2)
 
 - The top bar and the bottom navigation stay fixed. The main content area scrolls between them and is never
   covered by either bar.
-- The Cargo page uses a CSS container query on the usable content width. Its two panels sit side by side at
-  **990 px or more** and stack only below that, so a portrait window that is at least 990 px wide still shows
-  two columns. The app does not set a minimum window size.
+- The Cargo page's two panels sit side by side when the app is **990 px or wider** and stack only below
+  that (a width rule, never orientation), so a portrait window that is at least 990 px wide still shows two
+  columns. The app does not set a minimum window size.
 
 ## Local data
 
@@ -108,8 +117,29 @@ and is never stored in the repository.
 ## Tests
 
 Automated tests live in `tests/frontend/` (Node's built-in `node:test`, no extra dependencies) and
-`src-tauri/tests/` (Rust). Project policy keeps test files local, so both folders are git-ignored;
-`npm test` runs both suites. Tests only ever use temporary databases.
+`src-tauri/tests/` (Rust); `npm test` runs both suites. Tests only ever use temporary databases and
+temporary folders.
+
+The whole suite passes on a clean clone. A few tests need local material that is never committed;
+they **skip with a message** when it is missing:
+
+| Test | Needs |
+|---|---|
+| `src-tauri/tests/ocr_fixtures.rs` | screenshots and `ground-truth.json` in `.agent-local/`, the OCR bundle, Node |
+| `src-tauri/tests/parser_fixtures.rs` | the same screenshots and ground truth, the OCR bundle |
+| `gamelog.rs` · `real_game_log_fixture` | a real `Game.log` in `.agent-local/screenshot/` |
+| `gamelog.rs` · `detect_on_this_machine` | an installed RSI Launcher (its log) |
+| `tests/frontend/catalog-tools.test.ts` · reproducibility | the API cache in `tools/catalog/.cache/` |
+
+The OCR bundle is built by `scripts/prepare-tesseract.ps1`; debug builds and tests work without it.
+
+### What is tracked
+
+- **Tracked:** the source, the automated tests, the catalog generators (`tools/catalog/`) and the
+  generated catalogs (`src-tauri/resources/catalog/`).
+- **Never tracked:** `.agent-local/` (fixtures, screenshots, ground truth, desktop-session data), task
+  files and reports, caches (`tools/catalog/.cache/`), build output, databases, logs, and anything with
+  personal data. Test data in the repository is synthetic.
 
 ## Location catalog and bundled suggestion lists
 
@@ -133,5 +163,6 @@ value. Free text is always accepted, and validation and saving are unchanged.
 ### Data source and attribution
 
 Data from the [Star Citizen Wiki API](https://api.star-citizen.wiki) (api.star-citizen.wiki), maintained
-by the Star Citizen Wiki community. Unofficial; not affiliated with Cloud Imperium Games. The lists were
-gathered once with a local script that is not part of this repository.
+by the Star Citizen Wiki community. Unofficial; not affiliated with Cloud Imperium Games. The location,
+commodity and ship lists are generated by the scripts in [`tools/catalog/`](tools/catalog/README.md),
+which document every inclusion and exclusion rule and how to regenerate the lists after a game patch.

@@ -2,7 +2,7 @@
   "source": "Star Citizen Wiki API (api.star-citizen.wiki)",
   "attribution": "Data from api.star-citizen.wiki. Unofficial; not affiliated with Cloud Imperium Games.",
   "game_version": "4.10.3-LIVE.13165946",
-  "generated_at": "2026-11-20",
+  "generated_at": "2026-11-24",
   "items": [
     {
       "id": "ORIG_100i",
@@ -98,7 +98,7 @@
       "manufacturer": "Origin Jumpworks",
       "manufacturer_code": "ORIG",
       "cargo_scu": 388,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "CRUS_Starlifter_A2",
@@ -130,7 +130,7 @@
       "manufacturer": "Anvil Aerospace",
       "manufacturer_code": "ANVL",
       "cargo_scu": 180,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "RSI_Aurora_GS_CL",
@@ -210,7 +210,7 @@
       "manufacturer": "Crusader Industries",
       "manufacturer_code": "CRUS",
       "cargo_scu": 64,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "CRUS_Starlifter_C2",
@@ -258,7 +258,7 @@
       "manufacturer": "Drake Interplanetary",
       "manufacturer_code": "DRAK",
       "cargo_scu": 576,
-      "max_container_scu": 32
+      "max_container_scu": 24
     },
     {
       "id": "DRAK_Caterpillar_Pirate",
@@ -266,7 +266,7 @@
       "manufacturer": "Drake Interplanetary",
       "manufacturer_code": "DRAK",
       "cargo_scu": 576,
-      "max_container_scu": 32
+      "max_container_scu": 24
     },
     {
       "id": "DRAK_Clipper",
@@ -282,7 +282,7 @@
       "manufacturer": "Roberts Space Industries",
       "manufacturer_code": "RSI",
       "cargo_scu": 96,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "RSI_Constellation_Aquila_GS",
@@ -290,7 +290,7 @@
       "manufacturer": "Roberts Space Industries",
       "manufacturer_code": "RSI",
       "cargo_scu": 96,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "RSI_Constellation_Phoenix",
@@ -298,7 +298,7 @@
       "manufacturer": "Roberts Space Industries",
       "manufacturer_code": "RSI",
       "cargo_scu": 80,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "RSI_Constellation_Taurus",
@@ -306,7 +306,7 @@
       "manufacturer": "Roberts Space Industries",
       "manufacturer_code": "RSI",
       "cargo_scu": 174,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "RSI_Constellation_Mk5_Centaurus",
@@ -322,7 +322,7 @@
       "manufacturer": "Drake Interplanetary",
       "manufacturer_code": "DRAK",
       "cargo_scu": 72,
-      "max_container_scu": 32
+      "max_container_scu": 24
     },
     {
       "id": "DRAK_Cutlass_Black",
@@ -338,7 +338,7 @@
       "manufacturer": "Drake Interplanetary",
       "manufacturer_code": "DRAK",
       "cargo_scu": 12,
-      "max_container_scu": 1
+      "max_container_scu": null
     },
     {
       "id": "DRAK_Cutlass_Red",
@@ -346,7 +346,7 @@
       "manufacturer": "Drake Interplanetary",
       "manufacturer_code": "DRAK",
       "cargo_scu": 12,
-      "max_container_scu": 1
+      "max_container_scu": null
     },
     {
       "id": "DRAK_Cutter",
@@ -386,7 +386,7 @@
       "manufacturer": "Roberts Space Industries",
       "manufacturer_code": "RSI",
       "cargo_scu": 720,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "DRAK_Golem_OX",
@@ -394,7 +394,7 @@
       "manufacturer": "Drake Interplanetary",
       "manufacturer_code": "DRAK",
       "cargo_scu": 64,
-      "max_container_scu": 1
+      "max_container_scu": null
     },
     {
       "id": "AEGS_Hammerhead_GS",
@@ -402,7 +402,7 @@
       "manufacturer": "Aegis Dynamics",
       "manufacturer_code": "AEGS",
       "cargo_scu": 64,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "RSI_Hermes",
@@ -410,7 +410,7 @@
       "manufacturer": "Roberts Space Industries",
       "manufacturer_code": "RSI",
       "cargo_scu": 288,
-      "max_container_scu": 1
+      "max_container_scu": null
     },
     {
       "id": "AEGS_Idris_M",
@@ -442,7 +442,7 @@
       "manufacturer": "Drake Interplanetary",
       "manufacturer_code": "DRAK",
       "cargo_scu": 2200,
-      "max_container_scu": 1
+      "max_container_scu": null
     },
     {
       "id": "DRAK_Ironclad_Assault",
@@ -450,7 +450,7 @@
       "manufacturer": "Drake Interplanetary",
       "manufacturer_code": "DRAK",
       "cargo_scu": 1440,
-      "max_container_scu": 1
+      "max_container_scu": null
     },
     {
       "id": "ANVL_Liberator",
@@ -458,7 +458,7 @@
       "manufacturer": "Anvil Aerospace",
       "manufacturer_code": "ANVL",
       "cargo_scu": 400,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "CRUS_Starlifter_M2",
@@ -482,7 +482,7 @@
       "manufacturer": "Crusader Industries",
       "manufacturer_code": "CRUS",
       "cargo_scu": 114,
-      "max_container_scu": 32
+      "max_container_scu": 24
     },
     {
       "id": "MISC_Fortune",
@@ -490,7 +490,7 @@
       "manufacturer": "Musashi Industrial and Starflight Concern",
       "manufacturer_code": "MISC",
       "cargo_scu": 16,
-      "max_container_scu": 1
+      "max_container_scu": null
     },
     {
       "id": "MISC_Freelancer",
@@ -498,7 +498,7 @@
       "manufacturer": "Musashi Industrial and Starflight Concern",
       "manufacturer_code": "MISC",
       "cargo_scu": 66,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "MISC_Freelancer_DUR",
@@ -514,7 +514,7 @@
       "manufacturer": "Musashi Industrial and Starflight Concern",
       "manufacturer_code": "MISC",
       "cargo_scu": 120,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "MISC_Freelancer_MIS",
@@ -538,7 +538,7 @@
       "manufacturer": "Musashi Industrial and Starflight Concern",
       "manufacturer_code": "MISC",
       "cargo_scu": 512,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "MISC_Hull_C",
@@ -546,7 +546,7 @@
       "manufacturer": "Musashi Industrial and Starflight Concern",
       "manufacturer_code": "MISC",
       "cargo_scu": 4608,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "MISC_Reliant",
@@ -570,7 +570,7 @@
       "manufacturer": "Musashi Industrial and Starflight Concern",
       "manufacturer_code": "MISC",
       "cargo_scu": 291,
-      "max_container_scu": 32
+      "max_container_scu": 16
     },
     {
       "id": "MISC_Starfarer_Gemini",
@@ -578,7 +578,7 @@
       "manufacturer": "Musashi Industrial and Starflight Concern",
       "manufacturer_code": "MISC",
       "cargo_scu": 291,
-      "max_container_scu": 32
+      "max_container_scu": 16
     },
     {
       "id": "MISC_Starlancer_Max",
@@ -586,7 +586,7 @@
       "manufacturer": "Musashi Industrial and Starflight Concern",
       "manufacturer_code": "MISC",
       "cargo_scu": 224,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "MISC_Starlancer_TAC",
@@ -594,7 +594,7 @@
       "manufacturer": "Musashi Industrial and Starflight Concern",
       "manufacturer_code": "MISC",
       "cargo_scu": 96,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "ARGO_MOLE",
@@ -666,7 +666,7 @@
       "manufacturer": "Roberts Space Industries",
       "manufacturer_code": "RSI",
       "cargo_scu": 96,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "RSI_Polaris",
@@ -674,7 +674,7 @@
       "manufacturer": "Roberts Space Industries",
       "manufacturer_code": "RSI",
       "cargo_scu": 576,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "ESPR_Prowler_Utility",
@@ -682,7 +682,7 @@
       "manufacturer": "Esperia",
       "manufacturer_code": "ESPR",
       "cargo_scu": 32,
-      "max_container_scu": 1
+      "max_container_scu": null
     },
     {
       "id": "ARGO_RAFT",
@@ -690,7 +690,7 @@
       "manufacturer": "Argo Astronautics",
       "manufacturer_code": "ARGO",
       "cargo_scu": 192,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "GAMA_Railen",
@@ -698,7 +698,7 @@
       "manufacturer": "Gatac Manufacture",
       "manufacturer_code": "GAMA",
       "cargo_scu": 640,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "AEGS_Reclaimer",
@@ -730,7 +730,7 @@
       "manufacturer": "Roberts Space Industries",
       "manufacturer_code": "RSI",
       "cargo_scu": 6,
-      "max_container_scu": 1
+      "max_container_scu": null
     },
     {
       "id": "GLSN_Shiv",
@@ -762,7 +762,7 @@
       "manufacturer": "Aegis Dynamics",
       "manufacturer_code": "AEGS",
       "cargo_scu": 64,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "GAMA_Tyilui",
@@ -770,7 +770,7 @@
       "manufacturer": "Gatac Manufacture",
       "manufacturer_code": "GAMA",
       "cargo_scu": 96,
-      "max_container_scu": 16
+      "max_container_scu": 24
     },
     {
       "id": "ANVL_Valkyrie",
@@ -778,7 +778,7 @@
       "manufacturer": "Anvil Aerospace",
       "manufacturer_code": "ANVL",
       "cargo_scu": 90,
-      "max_container_scu": 16
+      "max_container_scu": 24
     },
     {
       "id": "DRAK_Vulture",
@@ -786,7 +786,7 @@
       "manufacturer": "Drake Interplanetary",
       "manufacturer_code": "DRAK",
       "cargo_scu": 12,
-      "max_container_scu": 8
+      "max_container_scu": 16
     },
     {
       "id": "RSI_Zeus_CL",
@@ -794,7 +794,7 @@
       "manufacturer": "Roberts Space Industries",
       "manufacturer_code": "RSI",
       "cargo_scu": 128,
-      "max_container_scu": 16
+      "max_container_scu": 32
     },
     {
       "id": "RSI_Zeus_ES",

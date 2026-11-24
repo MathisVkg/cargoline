@@ -200,7 +200,10 @@ function ShipLine({ ship, activeScuMilli }: { ship: ShipEntry | null; activeScuM
 const pts = (list: [number, number, number][]) =>
   list.map(([x, y, z]) => project(x, y, z, UNIT).map((v) => v.toFixed(2)).join(",")).join(" ");
 
-/** One platform's floor: grid, outline; the overflow platform is amber with its label. */
+/**
+ * One platform's floor: grid and outline. The overflow platform is amber (outline and tint) with
+ * no text on it: a label overlapped the boxes (Task 14). The note under the view gives its SCU.
+ */
 function PlatformFloor({ platform: p, zoomed }: { platform: PlatformArea; zoomed: boolean }) {
   const x1 = p.x + p.width;
   const grid: string[] = [];
@@ -210,14 +213,10 @@ function PlatformFloor({ platform: p, zoomed }: { platform: PlatformArea; zoomed
   for (let y = 0; y <= p.depth; y += step) grid.push(line(project(p.x, y, 0, UNIT), project(x1, y, 0, UNIT)));
   const floor = pts([[p.x, 0, 0], [x1, 0, 0], [x1, p.depth, 0], [p.x, p.depth, 0]]);
   if (p.kind === "overflow") {
-    const [lx, ly] = project(p.x + p.width / 2, p.depth, 0, UNIT);
     return (
-      <g>
+      <g data-platform="overflow">
         <polygon points={floor} fill="var(--color-accent)" fillOpacity={0.12} stroke="var(--color-accent)" strokeOpacity={0.85} strokeWidth={1.4} vectorEffect="non-scaling-stroke" />
         <path d={grid.join("")} stroke="var(--color-accent)" strokeOpacity={0.18} fill="none" vectorEffect="non-scaling-stroke" />
-        <text x={lx} y={ly + UNIT * 1.6} textAnchor="middle" fontSize={UNIT * 1.05} className="font-mono" fill="var(--color-accent)">
-          Over capacity · {formatScu(p.scuMilli)} SCU
-        </text>
       </g>
     );
   }

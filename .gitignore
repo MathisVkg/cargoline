@@ -46,9 +46,8 @@ RULES.md
 *.report.md
 reports/
 fixtures/
-# Automated test files stay local (project policy). Both suites still run locally.
-/tests/
-/src-tauri/tests/
+# Automated tests are tracked (Task 14). Their local fixtures (screenshots, ground truth, a real
+# Game.log) stay in .agent-local/ and the tests that need them skip when they are missing.
 test-data/
 test-output/
 diagnostics/
@@ -73,3 +72,6 @@ Desktop.ini
 /.tesseract-build/
 /src-tauri/resources/tesseract/*
 !/src-tauri/resources/tesseract/README.md
+
+# Catalog generator API cache (tools/catalog)
+/tools/catalog/.cache/

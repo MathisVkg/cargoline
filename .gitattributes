@@ -1,0 +1,3 @@
+# Generated catalogs (tools/catalog) are written with LF line endings. Keep them LF in every
+# checkout so `node tools/catalog/<name>.mjs --check` compares byte for byte on Windows too.
+src-tauri/resources/catalog/*.json text eol=lf
