@@ -5,27 +5,60 @@ It needs no account and no server, and it does not require game log monitoring.
 
 > Unofficial fan project. Not affiliated with or endorsed by Cloud Imperium Games.
 
+## Download and install
+
+Get the latest version from the [Releases page](https://github.com/MathisVkg/cargoline/releases).
+Each release has two downloads. Pick one:
+
+| File | Choose it if |
+|---|---|
+| `Cargo-Line_<version>_x64-setup.exe` (**recommended**) | You want a normal install: a Start menu entry, no admin rights needed (it installs for your user only, in `%LOCALAPPDATA%\Cargo Line`). It gets the update notice, and later the in-app update. |
+| `Cargo-Line_<version>_x64-portable.zip` | You don't want to install anything. Extract the zip and run `cargo-line.exe`. Everything stays in its own folder, so you can keep it on a USB stick. Updates are done by hand. |
+
+**"Windows protected your PC".** Cargo Line isn't code-signed yet, so Windows SmartScreen doesn't know it and
+shows this blue warning the first time. Click **More info**, then **Run anyway**.
+
+**Checking the download (optional).** Each release has a `SHA256SUMS.txt`. In PowerShell, run
+`Get-FileHash <file> -Algorithm SHA256` and compare the result with the line for that file (case doesn't matter).
+
+**Requirements**
+
+- Windows 10 or 11, x64.
+- Microsoft Edge WebView2 Runtime. Windows 11 already has it. If it's missing, the installer downloads and
+  installs it for you. For the portable version, get it from
+  [Microsoft's WebView2 page](https://developer.microsoft.com/microsoft-edge/webview2/) ("Evergreen Bootstrapper").
+- Star Citizen in **borderless or windowed** mode, 16:9 or wider (16:10 works too), for reading contracts from a
+  screenshot.
+
+**Where your data lives**
+
+- **Installed:** your contracts, history, screenshots and settings are in
+  `%APPDATA%\io.github.mathisvkg.sccargoapp`. The WebView2 profile and temporary OCR files are in
+  `%LOCALAPPDATA%\io.github.mathisvkg.sccargoapp`. Uninstalling keeps your data, unless you tick
+  **Delete the application data** in the uninstaller. That box deletes those two folders (and the installer's own
+registry entries) and nothing else. A portable copy is never touched by the uninstaller.
+- **Portable:** everything is in the `data\` folder next to `cargo-line.exe`. Nothing is written to `%APPDATA%`
+  or `%LOCALAPPDATA%`. To move to another PC, close the app and copy the whole folder. To switch the portable
+  copy to the normal app data folder, delete `portable.txt`.
+- **Both:** Settings → Data → Export backup makes a single backup file that either version can restore.
+
+Settings → About shows the version and which one you're running (`Installed` or `Portable`).
+
 ## Current status
 
-**Early development.** You can add contracts by hand. They are saved locally and shown on the Contracts
-page, grouped by location or by contract. Everything else is still a placeholder.
+**Beta.** What the app does:
 
-| Area | Status |
+| Area | What it does |
 | --- | --- |
-| Native window (standard Windows controls, resizable) | Implemented |
-| Top bar with ship selector | Placeholder, disabled. No ship catalog yet |
-| Bottom navigation: Contracts, Cargo, History, Settings | Implemented |
-| Contracts: manual Add Contract | Implemented |
-| Contracts: By Location / By Contract views (choice is remembered) | Implemented |
-| Contracts: searchable location and commodity fields (bundled lists + your own entries) | Implemented |
-| Contracts: edit, complete and abandon active contracts (single or all) | Implemented |
-| Contracts: optional Pick Up / Turn In reminder ticks (display only) | Implemented |
-| Contracts: History page, OCR capture | Not implemented |
-| Cargo summary and visualisation | Not implemented. Layout placeholder only |
-| History, runs, statistics | Not implemented. Empty state only |
-| Settings | Placeholder, controls disabled. Version is read from the app |
-| SQLite database, schema migrations, persistent settings (Rust only) | Implemented. Not yet connected to the UI |
-| OCR, screenshots, Game.log, ship catalog import, updater | Not started |
+| Contracts | Add by hand or read from a screenshot (built-in OCR). Grouped by location or by contract. Edit, complete or abandon contracts. Pick Up / Turn In ticks. |
+| Game.log | Optional. Detects the log, notices contracts accepted and completed in the game. |
+| Ships | Catalog from the Star Citizen Wiki, favourites, custom ships, selector in the top bar. |
+| Cargo | Pickup and destination summary, isometric box view. |
+| History | Runs, earnings, aUEC per hour. Restore or clear. |
+| Settings | Capture, Game.log, data folder, backup and restore, About. |
+| Updates | Not yet: download new versions from the Releases page. |
+
+See [`CHANGELOG.md`](CHANGELOG.md) for each version's changes.
 
 ## Prerequisites (Windows x64)
 
@@ -59,8 +92,16 @@ npm test                                                       # both test suite
 
 Node is pinned in `.nvmrc` (Node 24: the frontend tests use its built-in TypeScript support).
 
-To build a release executable, run `npm run tauri build`. The executable is written to
-`src-tauri/target/release/cargo-line.exe`. Installer bundling is turned off for now.
+To build a release (installer, portable zip and checksums), run the same script the release workflow uses:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\build-release.ps1              # with all the CI checks
+powershell -ExecutionPolicy Bypass -File scripts\build-release.ps1 -SkipChecks  # quick rebuild
+```
+
+The output goes to `release-out/` (git-ignored). For the exe alone, run `npm run tauri build -- --no-bundle`
+(output: `src-tauri/target/release/cargo-line.exe`). Making a release is described in
+[`docs/RELEASING.md`](docs/RELEASING.md).
 
 ### Measuring startup
 
@@ -118,8 +159,10 @@ tools/catalog/  Generators for the bundled catalogs (see tools/catalog/README.md
 
 ## Local data
 
-The database is `%APPDATA%\io.github.mathisvkg.sccargoapp\sc-cargo-app.sqlite3`. It is created on first launch
-and is never stored in the repository.
+The database is `%APPDATA%\io.github.mathisvkg.sccargoapp\sc-cargo-app.sqlite3` (portable version:
+`data\sc-cargo-app.sqlite3` next to the exe). It is created on first launch and is never stored in the repository.
+The data folder is decided once at startup, in this order: `CARGO_LINE_DATA_DIR`, then `portable.txt` next to
+the exe (→ `data\`), then `%APPDATA%` (`src-tauri/src/layout.rs`).
 
 - **Engine:** SQLite, bundled through `rusqlite`. Foreign keys are enforced, the database uses WAL journaling,
   and a connection waits up to 5 s for a lock before failing.

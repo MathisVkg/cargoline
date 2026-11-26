@@ -1,0 +1,152 @@
+# Release pipeline (Windows x64). The build runs scripts/build-release.ps1, the same script as on a
+# developer PC: the CI checks, the NSIS installer, the portable zip and SHA256SUMS.txt.
+#
+# - Tag push (v1.0.0, v1.0.0-beta.1, ...): builds, then creates a DRAFT GitHub Release with the three
+#   files. The maintainer reviews the draft and publishes it by hand. An existing release for the
+#   tag is never overwritten: the run fails instead.
+# - Manual run (workflow_dispatch): builds only and keeps the files as a workflow artifact for 7 days.
+#
+# Unsigned for now. No secrets other than the automatic GITHUB_TOKEN; write access only in the
+# release job, which runs no project code.
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build installer and portable zip
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: 0
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Fails fast, before any build, when the tag isn't "v" + the version in package.json.
+      - name: Read the version (and check it against the tag)
+        id: version
+        shell: pwsh
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($env:REF_TYPE -eq "tag" -and $env:REF_NAME -ne "v$version") {
+            Write-Error "The tag $env:REF_NAME doesn't match the version in package.json (v$version)."
+            exit 1
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "prerelease=$(if ($version.Contains('-')) { 'true' } else { 'false' })" >> $env:GITHUB_OUTPUT
+
+      - name: Set up Node (version from .nvmrc), with the npm cache
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Set up Rust stable (rustfmt, clippy)
+        uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable branch
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry and target
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+        with:
+          workspaces: src-tauri -> target
+
+      # Building Tesseract with vcpkg is the slow part. The bundle only changes with the script or
+      # its overlay port, so it is cached on their hash; build-release.ps1 builds it on a miss.
+      - name: Cache the OCR bundle (Tesseract)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: src-tauri/resources/tesseract
+          key: tesseract-${{ runner.os }}-${{ hashFiles('scripts/prepare-tesseract.ps1', 'scripts/tesseract/**') }}
+
+      - name: Build the release (checks, installer, portable zip, checksums)
+        shell: pwsh
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          $tag = if ($env:REF_TYPE -eq "tag") { $env:REF_NAME } else { "" }
+          ./scripts/build-release.ps1 -Tag $tag
+
+      - name: Keep the files as a workflow artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cargo-line-${{ steps.version.outputs.version }}
+          path: |
+            release-out/Cargo-Line_*_x64-setup.exe
+            release-out/Cargo-Line_*_x64-portable.zip
+            release-out/SHA256SUMS.txt
+            release-out/release-notes.md
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Create the draft GitHub Release
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # create the draft release and upload its files
+      actions: read # download this run's artifact
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+      VERSION: ${{ needs.build.outputs.version }}
+      PRERELEASE: ${{ needs.build.outputs.prerelease }}
+      RUN_ID: ${{ github.run_id }}
+    steps:
+      - name: Download the built files
+        shell: pwsh
+        run: |
+          gh run download $env:RUN_ID --name "cargo-line-$env:VERSION" --dir release-out
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Get-ChildItem release-out | Format-Table Name, Length
+
+      - name: Check the checksums
+        shell: pwsh
+        run: |
+          foreach ($line in Get-Content release-out/SHA256SUMS.txt) {
+            $hash, $name = $line -split '\s+', 2
+            $actual = (Get-FileHash "release-out/$name" -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actual -ne $hash) { Write-Error "$name doesn't match SHA256SUMS.txt"; exit 1 }
+          }
+
+      # Drafts are included in the list, so a draft left from an earlier run also stops this one.
+      - name: Create the draft release (never overwrites)
+        shell: pwsh
+        run: |
+          $existing = gh release list --limit 200 --json tagName --jq ".[] | select(.tagName == `"$env:TAG`") | .tagName"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          if ($existing) { Write-Error "A release for $env:TAG already exists. Delete it first if it should be rebuilt."; exit 1 }
+          $files = @(
+            "release-out/Cargo-Line_${env:VERSION}_x64-setup.exe",
+            "release-out/Cargo-Line_${env:VERSION}_x64-portable.zip",
+            "release-out/SHA256SUMS.txt"
+          )
+          $flags = @("--draft", "--verify-tag", "--title", "Cargo Line $env:VERSION", "--notes-file", "release-out/release-notes.md")
+          if ($env:PRERELEASE -eq "true") { $flags += "--prerelease" }
+          gh release create $env:TAG @files @flags
+          if ($LASTEXITCODE -ne 0) { exit 1 }

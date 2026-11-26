@@ -1,6 +1,6 @@
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { call } from "../contracts/api";
-import { BACKUP_FILTER, backupFileName, type BackupInfo, type CatalogCredit, type LinkKey } from "./model";
+import { BACKUP_FILTER, backupFileName, type AppMode, type BackupInfo, type CatalogCredit, type LinkKey } from "./model";
 
 export interface DataInfo {
   /** Full path of the app data folder. */
@@ -20,6 +20,7 @@ export interface StartupNotice {
 
 export interface AboutInfo {
   version: string;
+  mode: AppMode;
   catalogs: CatalogCredit[];
   thirdPartyNotices: string;
 }

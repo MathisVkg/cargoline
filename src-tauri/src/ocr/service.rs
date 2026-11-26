@@ -38,14 +38,24 @@ impl OcrState {
         if let Some(engine) = cached.as_ref() {
             return Ok(engine.clone());
         }
-        let resources = app
-            .path()
-            .resource_dir()
-            .map_err(|e| OcrError::EngineMissing(format!("no resource folder: {e}")))?;
+        // Next to the exe first (the portable zip), then the resource folder (the installer;
+        // on Windows it is usually the same folder).
+        let resources = app.path().resource_dir().ok();
+        let candidates = crate::layout::ocr_bundle_candidates(
+            crate::layout::current().exe_dir.as_deref(),
+            resources.as_deref(),
+            BUNDLE_DIR,
+        );
+        let dir = candidates
+            .iter()
+            .find(|d| d.join(super::engine::EXE_NAME).is_file())
+            .or(candidates.first())
+            .cloned()
+            .ok_or_else(|| OcrError::EngineMissing("no exe or resource folder".into()))?;
         let temp = crate::local_data_dir(app)
             .map_err(|e| OcrError::Failed(format!("no local data folder: {e}")))?
             .join("ocr-tmp");
-        let engine = Engine::in_dir(&resources.join(BUNDLE_DIR), temp, CALL_TIMEOUT);
+        let engine = Engine::in_dir(&dir, temp, CALL_TIMEOUT);
         let version = engine.version()?; // lazy check: files present and the engine runs
         eprintln!("[cargo-line] OCR engine ready: {version}");
         clear_temp_dir(&engine.temp_dir);

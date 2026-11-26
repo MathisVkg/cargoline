@@ -930,6 +930,8 @@ pub struct CatalogCredit {
 #[serde(rename_all = "camelCase")]
 pub struct AboutInfo {
     pub version: String,
+    /// `installed`, `portable` or `dev` (a debug build). Task 20: only `installed` self-updates.
+    pub mode: crate::layout::AppMode,
     pub catalogs: Vec<CatalogCredit>,
     /// THIRD_PARTY_NOTICES.md, embedded at build time.
     pub third_party_notices: &'static str,
@@ -963,6 +965,7 @@ pub fn get_about_info(app: AppHandle) -> Result<AboutInfo, CommandError> {
     }
     Ok(AboutInfo {
         version: app.package_info().version.to_string(),
+        mode: crate::layout::current().mode,
         catalogs,
         third_party_notices: THIRD_PARTY_NOTICES,
     })

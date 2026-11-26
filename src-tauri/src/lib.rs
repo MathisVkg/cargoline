@@ -10,6 +10,7 @@ pub mod contracts;
 pub mod database;
 pub mod gamelog;
 pub mod history;
+pub mod layout;
 pub mod locations;
 pub mod ocr;
 pub mod parser;
@@ -50,25 +51,20 @@ pub fn data_dir_override(
     })
 }
 
-fn dev_data_dir() -> Option<std::path::PathBuf> {
-    data_dir_override(
-        cfg!(debug_assertions),
-        std::env::var_os(DATA_DIR_ENV),
-        std::env::var_os(DEV_DATA_DIR_ENV),
-    )
-}
-
-/// The roaming app data folder (database, captures), or the dev override.
+/// The roaming app data folder (database, captures, backups' safety copies, the trace): the
+/// override, the portable `data\` folder, or `%APPDATA%\io.github.mathisvkg.sccargoapp`
+/// (see [`layout`]).
 pub fn data_dir<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<std::path::PathBuf> {
-    match dev_data_dir() {
-        Some(dir) => Ok(dir),
+    match layout::current().data.path() {
+        Some(dir) => Ok(dir.to_path_buf()),
         None => app.path().app_data_dir(),
     }
 }
 
-/// The local app data folder (OCR temp files), or `<dev override>/local`.
+/// The local app data folder (OCR temp files): `<override or portable folder>\local`, or
+/// `%LOCALAPPDATA%\io.github.mathisvkg.sccargoapp`.
 pub fn local_data_dir<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<std::path::PathBuf> {
-    match dev_data_dir() {
+    match layout::current().data.path() {
         Some(dir) => Ok(dir.join("local")),
         None => app.path().app_local_data_dir(),
     }
@@ -79,6 +75,12 @@ pub fn local_data_dir<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<st
 pub fn run() {
     trace::init();
     trace::mark("main entered");
+    // Portable copy: refuse a read-only or temporary folder, and keep WebView2's profile in
+    // `data\webview\`. This has to happen before Tauri creates the window.
+    if let Err(problem) = layout::prepare_process() {
+        layout::show_fatal(&layout::portable_problem_message(&problem));
+        std::process::exit(1);
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(DatabaseState::default())
@@ -170,8 +172,14 @@ fn start_database<R: Runtime>(app: &tauri::AppHandle<R>) {
         .name("database-init".into())
         .spawn(move || {
             trace::mark("database thread start");
-            if let Some(dir) = dev_data_dir() {
-                eprintln!("[cargo-line] data folder override: {}", dir.display());
+            match &layout::current().data {
+                layout::DataDir::Override(dir) => {
+                    eprintln!("[cargo-line] data folder override: {}", dir.display())
+                }
+                layout::DataDir::Portable(dir) => {
+                    eprintln!("[cargo-line] portable data folder: {}", dir.display())
+                }
+                layout::DataDir::Default => {}
             }
             let outcome = data_dir(&app)
                 .map_err(|e| {

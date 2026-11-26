@@ -1,0 +1,2 @@
+This file makes Cargo Line portable: its data is kept in the data\ folder next to cargo-line.exe.
+Delete this file to use the normal app data folder (%APPDATA%\io.github.mathisvkg.sccargoapp) instead.

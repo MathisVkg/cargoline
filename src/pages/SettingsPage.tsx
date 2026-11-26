@@ -18,6 +18,7 @@ import {
 } from "../features/data/api";
 import {
   ABOUT_DESCRIPTION,
+  aboutVersionLine,
   DATA_CREDIT,
   DATA_TERMS,
   LICENCE_TEXT,
@@ -710,7 +711,8 @@ function AboutSection() {
     <SettingsSection index="05" title="About">
       <div className="space-y-1 px-4 py-4">
         <p className="text-sm font-semibold text-fg">
-          Cargo Line <span className="font-mono text-xs font-normal text-muted">{about?.version ?? ""}</span>
+          Cargo Line{" "}
+          <span className="font-mono text-xs font-normal text-muted">{about ? aboutVersionLine(about.version, about.mode) : ""}</span>
         </p>
         <p className="text-sm break-words text-muted">{ABOUT_DESCRIPTION}</p>
       </div>

@@ -99,6 +99,17 @@ export const UNOFFICIAL =
   "Cargo Line is an unofficial Star Citizen fan tool, not affiliated with the Cloud Imperium group of companies. Star Citizen® is a registered trademark of Cloud Imperium Rights LLC. All game content belongs to its respective owners.";
 export const REPOSITORY_LABEL = "github.com/MathisVkg/cargoline";
 
+/** Which kind of copy is running (Rust `layout::AppMode`). */
+export type AppMode = "installed" | "portable" | "dev";
+
+const MODE_LABELS: Record<AppMode, string> = { installed: "Installed", portable: "Portable", dev: "Development build" };
+
+/** "Version 1.0.0-beta.1 · Installed"; the version alone if the mode is unknown. */
+export function aboutVersionLine(version: string, mode: AppMode | undefined): string {
+  const label = mode ? MODE_LABELS[mode] : undefined;
+  return label ? `Version ${version} · ${label}` : `Version ${version}`;
+}
+
 /** "Ships: game 4.10.3-LIVE.13165946, generated 2026-11-24". */
 export function catalogCreditLine(c: CatalogCredit): string {
   return `${c.name}: game ${c.gameVersion}, generated ${c.generatedAt}`;

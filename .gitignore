@@ -75,3 +75,6 @@ Desktop.ini
 
 # Catalog generator API cache (tools/catalog)
 /tools/catalog/.cache/
+
+# Release build output (scripts/build-release.ps1)
+/release-out/

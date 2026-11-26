@@ -1,6 +1,6 @@
 [package]
 name = "cargo-line"
-version = "0.1.0"
+version = "1.0.0-beta.1"
 description = "Cargo Line — offline-first Star Citizen hauling contract manager (unofficial)"
 authors = ["Cargo Line contributors"]
 license = "GPL-3.0-only"
