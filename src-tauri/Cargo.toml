@@ -71,3 +71,15 @@ opt-level = 3
 opt-level = 3
 [profile.dev.package.miniz_oxide]
 opt-level = 3
+
+# Release builds (Task 18), measured on this project (from scratch, this PC):
+# - default: 14.5 MB, 98 s;
+# - lto = true + codegen-units = 1: 13.3 MB, about 180 s (chosen);
+# - the same with opt-level = "s": 9.9 MB, but a 4K screenshot PNG encodes about 3.5x slower
+#   (LTO re-optimises the PNG code at the binary's size level), so not used.
+# `strip` is not set: with MSVC the debug info is in the separate .pdb, so it changes nothing.
+# `panic` stays "unwind": a panic in a command's blocking job becomes an error reply
+# (`run_blocking`) instead of closing the app. CI builds debug only.
+[profile.release]
+lto = true
+codegen-units = 1

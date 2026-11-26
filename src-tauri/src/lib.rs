@@ -16,6 +16,8 @@ pub mod parser;
 pub mod reference;
 pub mod settings;
 pub mod ships;
+pub mod startup;
+pub mod trace;
 
 use database::{Database, DatabaseState, DATABASE_FILE_NAME};
 use tauri::{Manager, Runtime};
@@ -25,13 +27,35 @@ use tauri::{Manager, Runtime};
 /// builds ignore it.
 pub const DEV_DATA_DIR_ENV: &str = "CARGO_LINE_DEV_DATA_DIR";
 
-fn dev_data_dir() -> Option<std::path::PathBuf> {
-    if !cfg!(debug_assertions) {
-        return None;
-    }
-    std::env::var_os(DEV_DATA_DIR_ENV)
+/// Any build (Task 18, for measuring a release build): `CARGO_LINE_DATA_DIR` replaces the app
+/// data folders the same way. It must be an **absolute** path; anything else is ignored. Nothing
+/// happens unless the variable is set explicitly.
+pub const DATA_DIR_ENV: &str = "CARGO_LINE_DATA_DIR";
+
+/// The data folder override, if any: `CARGO_LINE_DATA_DIR` (absolute paths only, any build),
+/// then `CARGO_LINE_DEV_DATA_DIR` (debug builds only).
+pub fn data_dir_override(
+    debug_build: bool,
+    data_dir: Option<std::ffi::OsString>,
+    dev_data_dir: Option<std::ffi::OsString>,
+) -> Option<std::path::PathBuf> {
+    let explicit = data_dir
         .filter(|v| !v.is_empty())
         .map(std::path::PathBuf::from)
+        .filter(|p| p.is_absolute());
+    explicit.or_else(|| {
+        dev_data_dir
+            .filter(|v| debug_build && !v.is_empty())
+            .map(std::path::PathBuf::from)
+    })
+}
+
+fn dev_data_dir() -> Option<std::path::PathBuf> {
+    data_dir_override(
+        cfg!(debug_assertions),
+        std::env::var_os(DATA_DIR_ENV),
+        std::env::var_os(DEV_DATA_DIR_ENV),
+    )
 }
 
 /// The roaming app data folder (database, captures), or the dev override.
@@ -53,6 +77,8 @@ pub fn local_data_dir<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<st
 /// Builds and runs the Tauri application.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    trace::init();
+    trace::mark("main entered");
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(DatabaseState::default())
@@ -60,6 +86,7 @@ pub fn run() {
         .manage(ocr::service::OcrState::default())
         .manage(gamelog::service::GameLogState::default())
         .manage(backup::StartupNoticeState::default())
+        .manage(startup::FirstScreenGate::default())
         .register_asynchronous_uri_scheme_protocol("capture", |ctx, request, responder| {
             let app = ctx.app_handle().clone();
             let path = request.uri().path().to_string();
@@ -67,10 +94,19 @@ pub fn run() {
                 responder.respond(capture::service::serve_capture(&app, &path))
             });
         })
+        .on_page_load(|_, payload| match payload.event() {
+            tauri::webview::PageLoadEvent::Started => trace::mark_once("page load started"),
+            tauri::webview::PageLoadEvent::Finished => trace::mark_once("page load finished"),
+        })
         .setup(|app| {
+            trace::mark("setup begin");
+            if app.get_webview_window("main").is_some() {
+                trace::mark("window exists at setup");
+            }
             start_database(app.handle());
             capture::service::start_cleanup(app.handle());
             gamelog::service::start(app.handle());
+            trace::mark("setup end");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -118,7 +154,8 @@ pub fn run() {
             commands::restore_backup,
             commands::take_startup_notice,
             commands::open_link,
-            commands::get_about_info
+            commands::get_about_info,
+            commands::trace_marks
         ])
         .run(tauri::generate_context!())
         .expect("error while running Cargo Line");
@@ -132,14 +169,16 @@ fn start_database<R: Runtime>(app: &tauri::AppHandle<R>) {
     std::thread::Builder::new()
         .name("database-init".into())
         .spawn(move || {
+            trace::mark("database thread start");
             if let Some(dir) = dev_data_dir() {
-                eprintln!("[cargo-line] dev data folder override: {}", dir.display());
+                eprintln!("[cargo-line] data folder override: {}", dir.display());
             }
             let outcome = data_dir(&app)
                 .map_err(|e| {
                     database::DatabaseError::Unavailable(format!("no app data directory: {e}"))
                 })
                 .and_then(|dir| {
+                    trace::set_output_dir(&dir);
                     // A restore staged before the restart is swapped in before the database
                     // is opened (Task 17). On failure the current database is kept.
                     let db_file = dir.join(DATABASE_FILE_NAME);
@@ -153,40 +192,53 @@ fn start_database<R: Runtime>(app: &tauri::AppHandle<R>) {
                             *slot = Some(backup::StartupNotice { ok, message });
                         }
                     }
+                    trace::mark("pending restore checked");
                     Database::open(&db_file)
                 });
             match &outcome {
                 Ok(db) => {
+                    trace::mark("database opened, migrations done");
                     eprintln!("[cargo-line] database ready at {}", db.path().display());
                     // The bundled ship catalog is upserted before commands can read it
-                    // (idempotent; ships that left the list are hidden, never deleted).
+                    // (idempotent; ships that left the list are hidden, never deleted). When
+                    // the stored version is the bundled one, it is only checked (Task 18).
                     match ships::bundled().and_then(|list| {
                         let mut conn = db.connection().map_err(|e| e.to_string())?;
-                        ships::sync_catalog(&mut conn, list, database::now_utc_ms())
+                        ships::sync_catalog_if_changed(&mut conn, list, database::now_utc_ms())
                             .map_err(|e| e.to_string())
                     }) {
-                        Ok(r) if r.upserted > 0 || r.removed > 0 => eprintln!(
-                            "[cargo-line] ship catalog synced: {} updated, {} removed",
-                            r.upserted, r.removed
-                        ),
-                        Ok(_) => {}
+                        Ok(Some(r)) => {
+                            trace::mark("ship catalog sync done (written)");
+                            if r.upserted > 0 || r.removed > 0 {
+                                eprintln!(
+                                    "[cargo-line] ship catalog synced: {} updated, {} removed",
+                                    r.upserted, r.removed
+                                );
+                            }
+                        }
+                        Ok(None) => trace::mark("ship catalog sync done (up to date)"),
                         Err(e) => eprintln!("[cargo-line] ship catalog not loaded: {e}"),
-                    }
-                    // Game.log monitoring starts only if it was switched on in the settings.
-                    if let Ok(saved) = db
-                        .connection()
-                        .map_err(|e| e.to_string())
-                        .and_then(|c| settings::load(&c).map_err(|e| e.to_string()))
-                    {
-                        gamelog::service::configure_from_settings(
-                            &app.state::<gamelog::service::GameLogState>(),
-                            &saved,
-                        );
                     }
                 }
                 Err(e) => eprintln!("[cargo-line] database initialization failed: {e}"),
             }
+            // Commands can run from here; the watcher configuration below only reads settings.
             app.state::<DatabaseState>().set(outcome);
+            trace::mark("database ready for commands");
+            if let Ok(db) = app.state::<DatabaseState>().get() {
+                // Game.log monitoring starts only if it was switched on in the settings.
+                if let Ok(saved) = db
+                    .connection()
+                    .map_err(|e| e.to_string())
+                    .and_then(|c| settings::load(&c).map_err(|e| e.to_string()))
+                {
+                    gamelog::service::configure_from_settings(
+                        &app.state::<gamelog::service::GameLogState>(),
+                        &saved,
+                    );
+                }
+                trace::mark("watcher configured from settings");
+            }
         })
         .expect("failed to spawn the database initialization thread");
 }

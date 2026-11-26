@@ -25,6 +25,37 @@ pub enum TailError {
     Unreadable(String),
 }
 
+/// What a poll does, decided from the file's size and creation time only (Task 18).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PollPlan {
+    /// Read again from the start (the file was replaced or truncated).
+    pub restart: bool,
+    /// Read from this offset; nothing is opened or read when it equals the length.
+    pub from: u64,
+}
+
+impl PollPlan {
+    pub fn reads(&self, len: u64) -> bool {
+        self.from < len
+    }
+}
+
+/// Decides a poll from the last position and creation time and the file's current metadata.
+/// An unchanged file (same length, same creation time) gives a plan that reads nothing.
+pub fn plan_poll(
+    pos: u64,
+    known_created: Option<SystemTime>,
+    len: u64,
+    created: Option<SystemTime>,
+) -> PollPlan {
+    let replaced = known_created.is_some() && created.is_some() && created != known_created;
+    let restart = replaced || len < pos;
+    PollPlan {
+        restart,
+        from: if restart { 0 } else { pos },
+    }
+}
+
 #[derive(Debug)]
 pub struct Tail {
     path: PathBuf,
@@ -75,15 +106,13 @@ impl Tail {
             self.created = created;
             return Ok(Vec::new());
         }
-        if self.created.is_some() && created.is_some() && created != self.created {
-            self.restart(); // replaced by a new file
-        }
+        let plan = plan_poll(self.pos, self.created, len, created);
         self.created = created;
-        if len < self.pos {
-            self.restart(); // truncated
+        if plan.restart {
+            self.restart(); // replaced by a new file, or truncated
         }
-        if len == self.pos {
-            return Ok(Vec::new());
+        if !plan.reads(len) {
+            return Ok(Vec::new()); // unchanged: the file is not opened
         }
         let mut file =
             File::open(&self.path).map_err(|e| TailError::Unreadable(e.kind().to_string()))?;

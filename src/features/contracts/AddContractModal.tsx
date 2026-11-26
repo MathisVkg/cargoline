@@ -19,13 +19,10 @@ import type { ParsedContract } from "../capture/types";
 import {
   createContract,
   describeError,
-  listLocations,
-  listReferenceCommodities,
-  listReferenceLocations,
-  listUsedCommodities,
   toCommandError,
   updateContract,
 } from "./api";
+import * as suggestions from "./referenceCache";
 import {
   draftFromContract,
   emptyDraft,
@@ -174,10 +171,10 @@ export function AddContractModal({
     function load<T>(request: Promise<T>, apply: (value: T) => void) {
       request.then((value) => !cancelled && apply(value)).catch(() => undefined);
     }
-    load(listReferenceLocations(), setReferenceLocations);
-    load(listReferenceCommodities(), setReferenceCommodities);
-    load(listLocations(), setUserLocations);
-    load(listUsedCommodities(), setUsedCommodities);
+    load(suggestions.referenceLocations(), setReferenceLocations);
+    load(suggestions.referenceCommodities(), setReferenceCommodities);
+    load(suggestions.userLocations(), setUserLocations);
+    load(suggestions.usedCommodities(), setUsedCommodities);
     return () => {
       cancelled = true;
     };

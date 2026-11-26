@@ -246,6 +246,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) {
             let mut tail: Option<Tail> = None;
             let mut tracker = Tracker::default();
             let mut seen_generation = u64::MAX;
+            crate::trace::mark("watcher thread started");
             loop {
                 let (config, generation) = state.snapshot();
                 if generation != seen_generation {
@@ -261,7 +262,9 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) {
                 }
                 if let Some(t) = tail.as_mut() {
                     let path = t.path().display().to_string();
-                    let status = match t.poll() {
+                    let polled = t.poll();
+                    crate::trace::mark_once("watcher first poll");
+                    let status = match polled {
                         Ok(lines) => {
                             for line in &lines {
                                 if let Some(parsed) = parse_line(line) {

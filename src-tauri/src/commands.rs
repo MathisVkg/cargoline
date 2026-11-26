@@ -5,7 +5,7 @@
 
 use std::time::Duration;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
 use crate::backup::{self, BackupError, BackupInfo, StartupNotice, StartupNoticeState};
@@ -345,9 +345,35 @@ pub async fn list_active_contracts(app: AppHandle) -> Result<Vec<ContractDetail>
         let state = app.state::<DatabaseState>();
         let db = state.wait_ready(READY_TIMEOUT)?;
         let conn = db.connection()?;
-        Ok(repository::list_active_contracts(&conn)?)
+        let list = repository::list_active_contracts(&conn)?;
+        drop(conn);
+        // Deferred startup work (the capture cleanup) may start now (Task 18).
+        app.state::<crate::startup::FirstScreenGate>().open();
+        crate::trace::mark_once("first contracts list served");
+        Ok(list)
     })
     .await
+}
+
+/// A startup timing mark from the frontend (Task 18).
+#[derive(Debug, Deserialize)]
+pub struct FrontendMark {
+    pub name: String,
+    /// Wall-clock time, Unix epoch ms.
+    pub at: f64,
+}
+
+/// Records frontend timing marks when `CARGO_LINE_STARTUP_TRACE` is on. Returns whether tracing
+/// is on: when it is off the frontend stops recording and never calls again.
+#[tauri::command]
+pub async fn trace_marks(marks: Vec<FrontendMark>) -> bool {
+    if !crate::trace::enabled() {
+        return false;
+    }
+    for m in marks.iter().take(64) {
+        crate::trace::mark_at(&format!("ui: {}", m.name), m.at);
+    }
+    true
 }
 
 impl From<SettingsError> for CommandError {

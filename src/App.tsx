@@ -1,10 +1,9 @@
-import { useEffect, useReducer, useRef, useState } from "react";
+import { Suspense, useEffect, useReducer, useRef, useState } from "react";
 import { TopBar } from "./components/TopBar";
 import { BottomNav } from "./components/BottomNav";
 import { ContractsPage } from "./pages/ContractsPage";
-import { CargoPage } from "./pages/CargoPage";
-import { HistoryPage } from "./pages/HistoryPage";
-import { SettingsPage } from "./pages/SettingsPage";
+import { CargoPage, HistoryPage, PREFETCH_DELAY_MS, SettingsPage, prefetchLazyChunks } from "./lazyPages";
+import { PageSkeleton } from "./components/PageSkeleton";
 import type { PageId } from "./navigation";
 import { getSettings } from "./features/capture/api";
 import { onGameLogEvent, SETTINGS_CHANGED } from "./features/gamelog/api";
@@ -12,6 +11,7 @@ import { initialFlow, reduceFlow } from "./features/gamelog/flow";
 import { matchesShortcut } from "./features/gamelog/shortcut";
 import { GameCompletions } from "./features/gamelog/GameCompletions";
 import { StartupNoticeBanner } from "./features/data/StartupNoticeBanner";
+import { traceMark, traceOnce } from "./features/perf/trace";
 
 /**
  * Application shell: fixed top bar, independently scrolling main area,
@@ -24,6 +24,12 @@ export default function App() {
   // Game.log events and the Add Contract modal (Task 10); works from any page.
   const [flow, dispatch] = useReducer(reduceFlow, initialFlow);
   const [shortcut, setShortcut] = useState<string | null>(null);
+
+  useEffect(() => {
+    traceMark("first React render");
+    const timer = window.setTimeout(prefetchLazyChunks, PREFETCH_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,13 +88,22 @@ export default function App() {
         className="min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]"
       >
         <StartupNoticeBanner />
-        {page === "contracts" && <ContractsPage flow={flow} dispatch={dispatch} />}
-        {page === "cargo" && <CargoPage flow={flow} />}
-        {page === "history" && <HistoryPage flow={flow} dispatch={dispatch} />}
-        {page === "settings" && <SettingsPage />}
+        <Suspense fallback={<PageSkeleton />}>
+          <PageShown page={page} />
+          {page === "contracts" && <ContractsPage flow={flow} dispatch={dispatch} />}
+          {page === "cargo" && <CargoPage flow={flow} />}
+          {page === "history" && <HistoryPage flow={flow} dispatch={dispatch} />}
+          {page === "settings" && <SettingsPage />}
+        </Suspense>
       </main>
       <BottomNav current={page} onNavigate={navigate} />
       <GameCompletions flow={flow} dispatch={dispatch} />
     </div>
   );
+}
+
+/** Trace mark when a page is first shown (inside Suspense: after its chunk has loaded). */
+function PageShown({ page }: { page: PageId }) {
+  useEffect(() => traceOnce(`page ${page} shown`), [page]);
+  return null;
 }

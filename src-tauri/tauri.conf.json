@@ -21,7 +21,8 @@
         "maximizable": true,
         "minimizable": true,
         "closable": true,
-        "center": true
+        "center": true,
+        "backgroundColor": "#0a0c0f"
       }
     ],
     "security": {

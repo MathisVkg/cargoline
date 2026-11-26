@@ -62,6 +62,27 @@ Node is pinned in `.nvmrc` (Node 24: the frontend tests use its built-in TypeScr
 To build a release executable, run `npm run tauri build`. The executable is written to
 `src-tauri/target/release/cargo-line.exe`. Installer bundling is turned off for now.
 
+### Measuring startup
+
+Two environment variables, both unset by default, help measure a release build without touching your data:
+
+- **`CARGO_LINE_DATA_DIR=<absolute folder>`:** the database, screenshots and OCR temp files go to that folder
+  instead of the app data folders. It works in any build; a relative path is ignored.
+  (`CARGO_LINE_DEV_DATA_DIR` does the same in debug builds only.)
+- **`CARGO_LINE_STARTUP_TRACE=1`:** writes timing marks, one per line, to stderr and to `startup-trace.log` in
+  the data folder. Offsets are in ms from the process start, and the file is replaced at each launch. Marks are
+  names and counts only, never paths or contract data. When the variable is unset, nothing is recorded.
+
+```powershell
+cargo run --release --manifest-path src-tauri/Cargo.toml --example perf_seed -- C:\temp\cl-perf    # synthetic data
+cargo run --release --manifest-path src-tauri/Cargo.toml --example perf_bench -- C:\temp\cl-perf   # backend steps, no window
+npm run tauri build -- --no-bundle
+$env:CARGO_LINE_DATA_DIR = "C:\temp\cl-perf"; $env:CARGO_LINE_STARTUP_TRACE = "1"
+$env:WEBVIEW2_USER_DATA_FOLDER = "C:\temp\cl-perf-webview"   # optional: a separate WebView2 profile
+src-tauri\target\release\cargo-line.exe
+Get-Content C:\temp\cl-perf\startup-trace.log
+```
+
 ## Architecture
 
 ```

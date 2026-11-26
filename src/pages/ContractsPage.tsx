@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CircleCheck,
@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { EmptyState, PageContainer, PageHeader, Panel } from "../components/ui";
 import { ActionMenu } from "../features/contracts/ActionMenu";
-import { AddContractModal } from "../features/contracts/AddContractModal";
+import { AddContractModal } from "../lazyPages";
 import type { Dispatch } from "react";
 import { GameLogNotices } from "../features/gamelog/GameLogNotices";
 import { bannerText } from "../features/gamelog/completion";
@@ -61,6 +61,7 @@ import { summaryForList } from "../features/contracts/summary";
 import { shipLabel, STALE_SHIP_NOTICE } from "../features/ships/model";
 import { dismissStale, useShips } from "../features/ships/store";
 import type { CommandError, ContractDetail, ContractGrouping } from "../features/contracts/types";
+import { traceOnce } from "../features/perf/trace";
 
 const MODES: { id: ContractGrouping; label: string }[] = [
   { id: "by_location", label: "By Location" },
@@ -113,7 +114,9 @@ export function ContractsPage({ flow, dispatch }: { flow: FlowState; dispatch: D
 
   const refresh = useCallback(async () => {
     try {
-      setList({ status: "ready", contracts: await listActiveContracts() });
+      const contracts = await listActiveContracts();
+      traceOnce("first contracts list received");
+      setList({ status: "ready", contracts });
     } catch (error) {
       setList({ status: "error", error: toCommandError(error) });
     }
@@ -130,6 +133,10 @@ export function ContractsPage({ flow, dispatch }: { flow: FlowState; dispatch: D
       cancelled = true;
     };
   }, [refresh]);
+
+  useEffect(() => {
+    if (list.status === "ready") traceOnce("first contracts list rendered");
+  }, [list.status]);
 
   // Contracts finalised or reactivated from the Game.log flow: reload.
   useEffect(() => {
@@ -518,6 +525,7 @@ export function ContractsPage({ flow, dispatch }: { flow: FlowState; dispatch: D
         </p>
       )}
 
+      <Suspense fallback={null}>
       {adding && (
         <AddContractModal
           key={`add:${flow.modal.session}`}
@@ -541,6 +549,7 @@ export function ContractsPage({ flow, dispatch }: { flow: FlowState; dispatch: D
           onStale={handleStaleEdit}
         />
       )}
+      </Suspense>
       {pending && (
         <ConfirmFinalizeDialog
           key={`${pending.action}:${pending.ids.join(",")}`}

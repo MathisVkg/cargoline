@@ -166,6 +166,15 @@ pub fn start_cleanup<R: Runtime>(app: &AppHandle<R>) {
     let spawned = std::thread::Builder::new()
         .name("capture-cleanup".into())
         .spawn(move || {
+            // The startup pass waits until the first contracts list has been served (at most
+            // FIRST_SCREEN_WAIT), so it never holds the connection ahead of it (Task 18).
+            let waited = app
+                .state::<crate::startup::FirstScreenGate>()
+                .wait(crate::startup::FIRST_SCREEN_WAIT);
+            crate::trace::mark(match waited {
+                crate::startup::GateOutcome::Opened => "capture cleanup: first screen served",
+                crate::startup::GateOutcome::TimedOut => "capture cleanup: wait timed out",
+            });
             let mut startup = true;
             loop {
                 match (
@@ -175,6 +184,9 @@ pub fn start_cleanup<R: Runtime>(app: &AppHandle<R>) {
                 ) {
                     (Ok(db), Ok(dir)) => match db.connection() {
                         Ok(conn) => {
+                            if startup {
+                                crate::trace::mark("capture cleanup start");
+                            }
                             let report = storage::cleanup(&conn, &dir, now_utc_ms(), startup);
                         if startup {
                             if let Err(e) = storage::fail_interrupted(&conn) {
@@ -188,6 +200,9 @@ pub fn start_cleanup<R: Runtime>(app: &AppHandle<R>) {
                                 + report.orphan_files;
                             if removed > 0 || !report.errors.is_empty() {
                                 eprintln!("[cargo-line] capture cleanup: {report:?}");
+                            }
+                            if startup {
+                                crate::trace::mark("capture cleanup done");
                             }
                             startup = false;
                         }

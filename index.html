@@ -1,13 +1,28 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" style="background: #0a0c0f">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
     <title>Cargo Line</title>
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="margin: 0; height: 100vh; background: #0a0c0f">
+    <!--
+      Static shell (Task 18): drawn by the WebView before any script runs, then replaced by the
+      app. Same layout and colours as the real top bar, page and bottom navigation.
+    -->
+    <div id="root" style="height: 100%">
+      <div style="display: grid; height: 100%; grid-template-rows: 56px minmax(0, 1fr) 56px" aria-busy="true">
+        <div style="border-bottom: 1px solid #222831; background: #101318"></div>
+        <div style="width: 100%; max-width: 64rem; margin: 0 auto; padding: 32px 24px; box-sizing: border-box">
+          <div style="height: 24px; width: 192px; margin-bottom: 24px; border-radius: 2px; background: #151920"></div>
+          <div style="height: 64px; margin-bottom: 12px; border: 1px solid #222831; border-radius: 2px; background: #101318"></div>
+          <div style="height: 64px; margin-bottom: 12px; border: 1px solid #222831; border-radius: 2px; background: #101318"></div>
+          <div style="height: 64px; margin-bottom: 12px; border: 1px solid #222831; border-radius: 2px; background: #101318"></div>
+        </div>
+        <div style="border-top: 1px solid #222831; background: #101318"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

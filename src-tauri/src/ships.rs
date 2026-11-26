@@ -103,6 +103,44 @@ pub struct SyncReport {
     pub version_changed: bool,
 }
 
+/// Whether the database already holds this catalog: the recorded version (game build +
+/// generation date) is the bundled one and the number of listed ships matches. Read-only.
+pub fn catalog_up_to_date(
+    conn: &Connection,
+    list: &ReferenceList<CatalogShip>,
+) -> rusqlite::Result<bool> {
+    let stored: Option<String> = conn
+        .query_row(
+            "SELECT catalog_version FROM catalog_metadata WHERE id = 1",
+            [],
+            |r| r.get(0),
+        )
+        .optional()?
+        .flatten();
+    if stored.as_deref() != Some(catalog_version(list).as_str()) {
+        return Ok(false);
+    }
+    let listed: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM ships WHERE availability_status = ?1",
+        [LISTED],
+        |r| r.get(0),
+    )?;
+    Ok(listed == list.items.len() as i64)
+}
+
+/// The startup sync (Task 18): checks first and only writes when the bundled catalog differs
+/// from the stored one. `None` = already up to date, nothing written (no write lock taken).
+pub fn sync_catalog_if_changed(
+    conn: &mut Connection,
+    list: &ReferenceList<CatalogShip>,
+    now_ms: i64,
+) -> rusqlite::Result<Option<SyncReport>> {
+    if catalog_up_to_date(conn, list)? {
+        return Ok(None);
+    }
+    sync_catalog(conn, list, now_ms).map(Some)
+}
+
 /// Upserts the list into `ships` in one transaction. Idempotent: running it again changes nothing.
 /// Catalog rows missing from the list are marked removed, never deleted. Custom ships are never
 /// touched: catalog ids cannot collide with theirs, and only `'listed'` rows can be marked removed.
