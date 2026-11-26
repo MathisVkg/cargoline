@@ -8,6 +8,7 @@ use std::time::Duration;
 use serde::Serialize;
 use tauri::{AppHandle, Manager};
 
+use crate::backup::{self, BackupError, BackupInfo, StartupNotice, StartupNoticeState};
 use crate::capture::service::{self as capture_service, ServiceError};
 use crate::capture::storage::CaptureInfo;
 use crate::capture::CaptureError;
@@ -75,12 +76,46 @@ pub enum CommandError {
         reason: ReactivateFailure,
         id: Option<i64>,
     },
+    /// Backup export or restore refused (Task 17); nothing changed.
+    Backup {
+        reason: BackupFailure,
+        message: String,
+    },
     /// Restore from History: the contract is active, not completed or abandoned; nothing changed.
     NotFinished {
         message: String,
         id: i64,
         status: String,
     },
+}
+
+/// Why a backup was refused.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum BackupFailure {
+    NotSqlite,
+    NotCargoLine,
+    TooNew,
+    Corrupted,
+    SameAsLive,
+    UnknownLink,
+    Io,
+}
+
+impl From<BackupError> for CommandError {
+    fn from(error: BackupError) -> Self {
+        let message = error.to_string();
+        let reason = match error {
+            BackupError::NotSqlite => BackupFailure::NotSqlite,
+            BackupError::NotCargoLine => BackupFailure::NotCargoLine,
+            BackupError::TooNew { .. } => BackupFailure::TooNew,
+            BackupError::Corrupted(_) => BackupFailure::Corrupted,
+            BackupError::SameAsLive => BackupFailure::SameAsLive,
+            BackupError::Io(_) => BackupFailure::Io,
+            BackupError::Sqlite(message) => return Self::Database { message },
+        };
+        Self::Backup { reason, message }
+    }
 }
 
 /// Why `reactivate_contracts` refused.
@@ -681,6 +716,230 @@ pub async fn delete_custom_ship(app: AppHandle, id: String) -> Result<bool, Comm
         Ok(ships::delete_custom_ship(&mut conn, &id)?)
     })
     .await
+}
+
+/* ---------------------------------------------------------------- Data */
+
+fn app_data_dir(app: &AppHandle) -> Result<std::path::PathBuf, CommandError> {
+    crate::data_dir(app).map_err(|e| CommandError::Unavailable {
+        message: format!("no app data folder: {e}"),
+    })
+}
+
+/// True when `candidate` is the live database file (or one of its companions).
+fn is_live_database(candidate: &std::path::Path, live: &std::path::Path) -> bool {
+    let canon = |p: &std::path::Path| -> Option<std::path::PathBuf> {
+        if let Ok(c) = std::fs::canonicalize(p) {
+            return Some(c);
+        }
+        let parent = std::fs::canonicalize(p.parent()?).ok()?;
+        Some(parent.join(p.file_name()?))
+    };
+    match (canon(candidate), canon(live)) {
+        (Some(a), Some(b)) => {
+            let (a, b) = (
+                a.to_string_lossy().to_lowercase(),
+                b.to_string_lossy().to_lowercase(),
+            );
+            a == b || a == format!("{b}-wal") || a == format!("{b}-shm")
+        }
+        _ => false,
+    }
+}
+
+/// The Data group: the app data folder (full path) and the number of safety copies.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DataInfo {
+    pub folder: String,
+    pub safety_copies: usize,
+}
+
+#[tauri::command]
+pub fn get_data_info(app: AppHandle) -> Result<DataInfo, CommandError> {
+    let dir = app_data_dir(&app)?;
+    Ok(DataInfo {
+        safety_copies: backup::safety_copies(&dir.join(backup::BACKUPS_DIR_NAME))
+            .map(|v| v.len())
+            .unwrap_or(0),
+        folder: dir.to_string_lossy().into_owned(),
+    })
+}
+
+/// Opens the app's own data folder in Explorer. Takes no path from the frontend.
+#[tauri::command]
+pub fn open_data_folder(app: AppHandle) -> Result<(), CommandError> {
+    let dir = app_data_dir(&app)?;
+    std::fs::create_dir_all(&dir).map_err(|e| CommandError::Internal {
+        message: e.to_string(),
+    })?;
+    let (program, folder) = backup::open_folder_command(&dir);
+    std::process::Command::new(program)
+        .arg(folder)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| CommandError::Internal {
+            message: format!("could not open Explorer: {e}"),
+        })
+}
+
+/// The exported file's name and what it contains.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportResult {
+    pub file_name: String,
+    pub info: BackupInfo,
+}
+
+/// Writes a consistent copy of the database to `path` (chosen in the Save dialog) and checks it.
+#[tauri::command]
+pub async fn export_backup(app: AppHandle, path: String) -> Result<ExportResult, CommandError> {
+    run_blocking(move || {
+        let dest = std::path::PathBuf::from(&path);
+        let dir = app_data_dir(&app)?;
+        let state = app.state::<DatabaseState>();
+        let db = state.wait_ready(READY_TIMEOUT)?;
+        if is_live_database(&dest, db.path()) {
+            return Err(BackupError::SameAsLive.into());
+        }
+        let conn = db.connection()?;
+        let info = backup::export(&conn, &dest, &dir)?;
+        Ok(ExportResult {
+            file_name: dest
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or(path),
+            info,
+        })
+    })
+    .await
+}
+
+/// Validates a backup chosen in the Open dialog and returns its contents (counts) for the
+/// confirmation. Never modifies the file.
+#[tauri::command]
+pub async fn inspect_backup(app: AppHandle, path: String) -> Result<BackupInfo, CommandError> {
+    run_blocking(move || {
+        let file = std::path::PathBuf::from(&path);
+        let dir = app_data_dir(&app)?;
+        if let Ok(db) = app.state::<DatabaseState>().wait_ready(READY_TIMEOUT) {
+            if is_live_database(&file, db.path()) {
+                return Err(BackupError::SameAsLive.into());
+            }
+        }
+        Ok(backup::inspect(&file, &dir)?)
+    })
+    .await
+}
+
+/// Restores a backup: validates it again, writes a safety copy of the current data, stages the
+/// backup and restarts the app; the swap happens at the next start, before the database opens.
+#[tauri::command]
+pub async fn restore_backup(app: AppHandle, path: String) -> Result<(), CommandError> {
+    let handle = app.clone();
+    run_blocking(move || {
+        let file = std::path::PathBuf::from(&path);
+        let dir = app_data_dir(&app)?;
+        let state = app.state::<DatabaseState>();
+        let db = state.wait_ready(READY_TIMEOUT)?;
+        if is_live_database(&file, db.path()) {
+            return Err(BackupError::SameAsLive.into());
+        }
+        backup::inspect(&file, &dir)?;
+        {
+            let conn = db.connection()?;
+            backup::safety_copy(
+                &conn,
+                &dir.join(backup::BACKUPS_DIR_NAME),
+                crate::database::now_utc_ms(),
+            )?;
+        }
+        backup::stage_restore(&file, &dir)?;
+        Ok(())
+    })
+    .await?;
+    eprintln!("[cargo-line] restore staged; restarting");
+    handle.restart()
+}
+
+/// The notice from a restore at startup, once (then cleared).
+#[tauri::command]
+pub fn take_startup_notice(app: AppHandle) -> Option<StartupNotice> {
+    app.state::<StartupNoticeState>()
+        .0
+        .lock()
+        .ok()
+        .and_then(|mut slot| slot.take())
+}
+
+/// Opens one of the About links in the default browser. The frontend sends a key; the URL comes
+/// from the fixed allow-list.
+#[tauri::command]
+pub fn open_link(key: String) -> Result<(), CommandError> {
+    let Some(url) = backup::link_url(&key) else {
+        return Err(CommandError::Backup {
+            reason: BackupFailure::UnknownLink,
+            message: format!("Unknown link: {key}"),
+        });
+    };
+    std::process::Command::new("explorer.exe")
+        .arg(url)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| CommandError::Internal {
+            message: format!("could not open the browser: {e}"),
+        })
+}
+
+/// One bundled catalog's header, for the About data credits.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CatalogCredit {
+    pub name: &'static str,
+    pub game_version: String,
+    pub generated_at: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AboutInfo {
+    pub version: String,
+    pub catalogs: Vec<CatalogCredit>,
+    /// THIRD_PARTY_NOTICES.md, embedded at build time.
+    pub third_party_notices: &'static str,
+}
+
+pub const THIRD_PARTY_NOTICES: &str = include_str!("../../THIRD_PARTY_NOTICES.md");
+
+#[tauri::command]
+pub fn get_about_info(app: AppHandle) -> Result<AboutInfo, CommandError> {
+    let mut catalogs = Vec::new();
+    if let Ok(list) = ships::bundled() {
+        catalogs.push(CatalogCredit {
+            name: "Ships",
+            game_version: list.game_version.clone(),
+            generated_at: list.generated_at.clone(),
+        });
+    }
+    if let Ok(list) = reference::locations() {
+        catalogs.push(CatalogCredit {
+            name: "Locations",
+            game_version: list.game_version.clone(),
+            generated_at: list.generated_at.clone(),
+        });
+    }
+    if let Ok(list) = reference::commodities() {
+        catalogs.push(CatalogCredit {
+            name: "Commodities",
+            game_version: list.game_version.clone(),
+            generated_at: list.generated_at.clone(),
+        });
+    }
+    Ok(AboutInfo {
+        version: app.package_info().version.to_string(),
+        catalogs,
+        third_party_notices: THIRD_PARTY_NOTICES,
+    })
 }
 
 /// `N ships · game <version> · Star Citizen Wiki` for Settings.

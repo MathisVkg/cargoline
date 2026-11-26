@@ -1,7 +1,41 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { getVersion } from "@tauri-apps/api/app";
-import { RefreshCw } from "lucide-react";
-import { DisabledButton, PageContainer, PageHeader, Tag } from "../components/ui";
+import { ExternalLink, RefreshCw } from "lucide-react";
+import { DisabledButton, PageContainer, PageHeader } from "../components/ui";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import {
+  chooseBackupDestination,
+  chooseBackupToRestore,
+  exportBackup,
+  getAboutInfo,
+  getDataInfo,
+  inspectBackup,
+  openDataFolder,
+  openLink,
+  restoreBackup,
+  type AboutInfo,
+  type DataInfo,
+} from "../features/data/api";
+import {
+  ABOUT_DESCRIPTION,
+  DATA_CREDIT,
+  DATA_TERMS,
+  LICENCE_TEXT,
+  REPOSITORY_LABEL,
+  RESTORE_QUESTION,
+  SCREENSHOTS_NOT_INCLUDED,
+  SETTINGS_DESCRIPTION,
+  UNOFFICIAL,
+  UPDATES_HINT,
+  backupContents,
+  catalogCreditLine,
+  exportNotice,
+  noticeBlocks,
+  refusalMessage,
+  shortenPath,
+  type BackupInfo,
+  type LinkKey,
+} from "../features/data/model";
 import { getSettings, updateCaptureSettings } from "../features/capture/api";
 import type { AppSettings, CaptureSettingsInput, CaptureSource, CompleteFromGameMode } from "../features/capture/types";
 import { getShipCatalogInfo } from "../features/ships/api";
@@ -31,12 +65,13 @@ export function SettingsPage() {
         <PageHeader
           index="04"
           title="Settings"
-          description="Game and OCR Capture settings are saved on this computer. Updates are a placeholder in this version."
+          description={SETTINGS_DESCRIPTION}
         />
         <div className="flex flex-col gap-6">
           <GameSection game={game} />
           <OcrSection game={game} />
           <UpdatesSection />
+          <DataSection />
           <AboutSection />
         </div>
       </div>
@@ -547,8 +582,8 @@ function UpdatesSection() {
       <Row label="Current version">
         <span className="font-mono text-sm text-fg">{version ?? "—"}</span>
       </Row>
-      <Row label="Check for updates" hint="Updates will always ask before installing.">
-        <DisabledButton icon={RefreshCw} note="Update checks are not available yet">
+      <Row label="Check for updates" hint={UPDATES_HINT}>
+        <DisabledButton icon={RefreshCw} note={UPDATES_HINT}>
           Check now
         </DisabledButton>
       </Row>
@@ -556,26 +591,214 @@ function UpdatesSection() {
   );
 }
 
-function AboutSection() {
+type DataNote = { tone: "success" | "error"; text: string };
+
+/** Data folder, Export backup, Restore backup (Task 17). */
+function DataSection() {
+  const [info, setInfo] = useState<DataInfo | null>(null);
+  const [note, setNote] = useState<DataNote | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [restoring, setRestoring] = useState<{ path: string; info: BackupInfo } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getDataInfo()
+      .then((d) => !cancelled && setInfo(d))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const fail = (e: unknown) => setNote({ tone: "error", text: refusalMessage(toCommandError(e) as { kind: string; reason?: string; message?: string }) });
+
+  const exportNow = async () => {
+    setNote(null);
+    const path = await chooseBackupDestination().catch(() => null);
+    if (!path) return; // cancelled: nothing happens
+    setBusy(true);
+    try {
+      const result = await exportBackup(path);
+      setNote({ tone: "success", text: exportNotice(result.fileName, result.info.bytes) });
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const restoreStart = async () => {
+    setNote(null);
+    const path = await chooseBackupToRestore().catch(() => null);
+    if (!path) return;
+    setBusy(true);
+    try {
+      setRestoring({ path, info: await inspectBackup(path) });
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <SettingsSection index="04" title="About">
-      <div className="space-y-3 px-4 py-4 text-sm text-muted">
-        <p className="break-words">
-          Cargo Line is an offline-first hauling contract manager for Star Citizen. It runs entirely on this
-          computer, with no account or server.
-        </p>
-        <p className="break-words">
-          Cargo Line is an unofficial fan project. It is not affiliated with or endorsed by Cloud Imperium Games.
-          Star Citizen® is a registered trademark of Cloud Imperium Rights LLC.
-        </p>
-      </div>
-      <Row label="Licenses & legal notices">
-        <Tag>Pending</Tag>
+    <SettingsSection index="04" title="Data">
+      <Row label="Data folder" hint="Your database, screenshots and safety copies.">
+        <div className="flex w-full min-w-0 items-center gap-2 sm:w-96">
+          <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted" title={info?.folder}>
+            {info ? shortenPath(info.folder) : "—"}
+          </span>
+          <SmallButton onClick={() => void openDataFolder().catch(fail)} disabled={!info}>
+            Open data folder
+          </SmallButton>
+        </div>
       </Row>
-      <Row label="Ship data attribution" hint="Unofficial; not affiliated with Cloud Imperium Games.">
-        <span className="text-sm break-words text-muted">Ship data from the Star Citizen Wiki API (api.star-citizen.wiki)</span>
+      <Row label="Export backup" hint={`A copy of your contracts, history, settings and ships. ${SCREENSHOTS_NOT_INCLUDED}`}>
+        <SmallButton onClick={() => void exportNow()} disabled={busy}>
+          Export backup…
+        </SmallButton>
       </Row>
+      <Row
+        label="Restore backup"
+        hint={`Replaces all current data. A safety copy is kept in the backups folder${info?.safetyCopies ? ` (${info.safetyCopies} so far)` : ""}.`}
+      >
+        <SmallButton onClick={() => void restoreStart()} disabled={busy}>
+          Restore backup…
+        </SmallButton>
+      </Row>
+      {note && (
+        <p role={note.tone === "error" ? "alert" : "status"} className={`px-4 py-2 text-xs break-words ${note.tone === "error" ? "text-danger" : "text-pickup"}`}>
+          {note.text}
+        </p>
+      )}
+      {restoring && (
+        <ConfirmDialog
+          id="restore-backup"
+          heading="Restore backup"
+          confirmLabel="Restore and restart"
+          danger
+          onCancel={() => setRestoring(null)}
+          onConfirm={async () => {
+            try {
+              await restoreBackup(restoring.path); // the app restarts
+              return { ok: true };
+            } catch (e) {
+              return { ok: false, message: refusalMessage(toCommandError(e) as { kind: string; reason?: string; message?: string }) };
+            }
+          }}
+        >
+          <p>{RESTORE_QUESTION}</p>
+          <p className="mt-2 text-xs text-dim">{backupContents(restoring.info)}</p>
+        </ConfirmDialog>
+      )}
     </SettingsSection>
+  );
+}
+
+function AboutSection() {
+  const [about, setAbout] = useState<AboutInfo | null>(null);
+  const [notices, setNotices] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    getAboutInfo()
+      .then((a) => !cancelled && setAbout(a))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const link = (key: LinkKey) => () => void openLink(key).catch(() => undefined);
+  return (
+    <SettingsSection index="05" title="About">
+      <div className="space-y-1 px-4 py-4">
+        <p className="text-sm font-semibold text-fg">
+          Cargo Line <span className="font-mono text-xs font-normal text-muted">{about?.version ?? ""}</span>
+        </p>
+        <p className="text-sm break-words text-muted">{ABOUT_DESCRIPTION}</p>
+      </div>
+      <Row label="Licence" hint={LICENCE_TEXT}>
+        <LinkButton onClick={link("license")}>View licence</LinkButton>
+      </Row>
+      <Row label="Third-party notices" hint="Tesseract OCR (Apache-2.0) and the libraries bundled with it.">
+        <SmallButton onClick={() => setNotices(true)} disabled={!about}>
+          View third-party notices
+        </SmallButton>
+      </Row>
+      <div className="space-y-1 px-4 py-3">
+        <p className="text-sm text-fg">Data credits</p>
+        <p className="text-xs break-words text-muted">
+          {DATA_CREDIT} {DATA_TERMS}
+        </p>
+        <ul className="text-xs text-dim">
+          {about?.catalogs.map((c) => (
+            <li key={c.name} className="font-mono">
+              {catalogCreditLine(c)}
+            </li>
+          ))}
+        </ul>
+        <LinkButton onClick={link("wikiApi")}>api.star-citizen.wiki</LinkButton>
+      </div>
+      <p className="px-4 py-3 text-xs break-words text-dim">{UNOFFICIAL}</p>
+      <Row label="Source code">
+        <LinkButton onClick={link("repository")}>{REPOSITORY_LABEL}</LinkButton>
+      </Row>
+      {notices && about && <NoticesDialog text={about.thirdPartyNotices} onClose={() => setNotices(false)} />}
+    </SettingsSection>
+  );
+}
+
+function LinkButton({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  return (
+    <button type="button" onClick={onClick} className="inline-flex items-center gap-1 text-sm text-accent underline-offset-2 hover:underline">
+      {children}
+      <ExternalLink className="size-3.5" aria-hidden="true" />
+    </button>
+  );
+}
+
+/** THIRD_PARTY_NOTICES.md (embedded at build time) as plain text with simple formatting. */
+function NoticesDialog({ text, onClose }: { text: string; onClose: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const dialog = ref.current;
+    if (dialog && !dialog.open) dialog.showModal();
+    closeRef.current?.focus();
+    return () => dialog?.close();
+  }, []);
+  const blocks = noticeBlocks(text);
+  return (
+    <dialog
+      ref={ref}
+      aria-labelledby="notices-title"
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
+      className="m-auto h-[min(40rem,calc(100%-2rem))] w-[min(46rem,calc(100%-2rem))] max-w-none flex-col overflow-hidden rounded-sm border border-line-strong bg-surface p-0 text-fg shadow-2xl backdrop:bg-black/70 open:flex"
+    >
+      <div className="flex items-center gap-3 border-b border-line px-4 py-3">
+        <h2 id="notices-title" className="min-w-0 flex-1 text-[15px] font-semibold">
+          Third-party notices
+        </h2>
+        <button ref={closeRef} type="button" onClick={onClose} className="h-8 rounded-sm border border-line px-3 text-sm text-muted hover:border-line-strong hover:text-fg">
+          Close
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3" tabIndex={0} aria-label="Notices text">
+        {blocks.map((b, i) =>
+          b.kind === "heading" ? (
+            <p key={i} className={b.level <= 2 ? "mt-4 text-sm font-semibold text-fg first:mt-0" : "mt-3 text-xs font-semibold text-muted"}>
+              {b.text}
+            </p>
+          ) : b.kind === "rule" ? (
+            <hr key={i} className="my-3 border-line" />
+          ) : (
+            <pre key={i} className="mt-2 font-mono text-[11px] leading-relaxed break-words whitespace-pre-wrap text-muted">
+              {b.text}
+            </pre>
+          ),
+        )}
+      </div>
+    </dialog>
   );
 }
 

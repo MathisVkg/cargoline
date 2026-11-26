@@ -3,6 +3,7 @@
 //! The Rust side owns business logic, local IO and native capabilities,
 //! including the SQLite database. The frontend never accesses SQL directly.
 
+pub mod backup;
 pub mod capture;
 pub mod commands;
 pub mod contracts;
@@ -58,6 +59,7 @@ pub fn run() {
         .manage(capture::CaptureState::default())
         .manage(ocr::service::OcrState::default())
         .manage(gamelog::service::GameLogState::default())
+        .manage(backup::StartupNoticeState::default())
         .register_asynchronous_uri_scheme_protocol("capture", |ctx, request, responder| {
             let app = ctx.app_handle().clone();
             let path = request.uri().path().to_string();
@@ -108,7 +110,15 @@ pub fn run() {
             commands::get_ship_catalog_info,
             commands::create_custom_ship,
             commands::update_custom_ship,
-            commands::delete_custom_ship
+            commands::delete_custom_ship,
+            commands::get_data_info,
+            commands::open_data_folder,
+            commands::export_backup,
+            commands::inspect_backup,
+            commands::restore_backup,
+            commands::take_startup_notice,
+            commands::open_link,
+            commands::get_about_info
         ])
         .run(tauri::generate_context!())
         .expect("error while running Cargo Line");
@@ -129,7 +139,22 @@ fn start_database<R: Runtime>(app: &tauri::AppHandle<R>) {
                 .map_err(|e| {
                     database::DatabaseError::Unavailable(format!("no app data directory: {e}"))
                 })
-                .and_then(|dir| Database::open(&dir.join(DATABASE_FILE_NAME)));
+                .and_then(|dir| {
+                    // A restore staged before the restart is swapped in before the database
+                    // is opened (Task 17). On failure the current database is kept.
+                    let db_file = dir.join(DATABASE_FILE_NAME);
+                    let restored = backup::apply_pending(&dir, &db_file);
+                    if let Some((ok, message)) = backup::restore_notice(&restored) {
+                        eprintln!(
+                            "[cargo-line] restore at startup: {}",
+                            if ok { "done" } else { "failed" }
+                        );
+                        if let Ok(mut slot) = app.state::<backup::StartupNoticeState>().0.lock() {
+                            *slot = Some(backup::StartupNotice { ok, message });
+                        }
+                    }
+                    Database::open(&db_file)
+                });
             match &outcome {
                 Ok(db) => {
                     eprintln!("[cargo-line] database ready at {}", db.path().display());

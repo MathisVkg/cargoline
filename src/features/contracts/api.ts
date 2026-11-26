@@ -71,6 +71,7 @@ export function describeError(error: CommandError): string {
       return "The active contract list changed in the meantime. Nothing was changed; the list has been reloaded.";
     case "capture":
     case "ocr":
+    case "backup":
     case "cannotReactivate":
       return error.message;
     case "unknownShip":

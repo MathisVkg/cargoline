@@ -11,6 +11,7 @@ import { onGameLogEvent, SETTINGS_CHANGED } from "./features/gamelog/api";
 import { initialFlow, reduceFlow } from "./features/gamelog/flow";
 import { matchesShortcut } from "./features/gamelog/shortcut";
 import { GameCompletions } from "./features/gamelog/GameCompletions";
+import { StartupNoticeBanner } from "./features/data/StartupNoticeBanner";
 
 /**
  * Application shell: fixed top bar, independently scrolling main area,
@@ -80,6 +81,7 @@ export default function App() {
         aria-label="Page content"
         className="min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]"
       >
+        <StartupNoticeBanner />
         {page === "contracts" && <ContractsPage flow={flow} dispatch={dispatch} />}
         {page === "cargo" && <CargoPage flow={flow} />}
         {page === "history" && <HistoryPage flow={flow} dispatch={dispatch} />}
