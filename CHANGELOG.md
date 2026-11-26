@@ -4,7 +4,7 @@ All notable changes to Cargo Line are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## [1.0.0-beta.1] - Unreleased
+## [1.0.0-beta.1] - 2026-11-27
 
 The first public beta. Windows 10/11 (x64), offline, no account. The app isn't code-signed yet,
 so Windows SmartScreen shows a warning the first time (More info → Run anyway).
