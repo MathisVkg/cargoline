@@ -12,7 +12,7 @@ use cargo_line_lib::update::feed::{
     tag_version, ApiRelease, FeedError, MAX_FEED_BYTES, MAX_NOTES_CHARS,
 };
 use cargo_line_lib::update::install::{
-    in_app_install_allowed, installer_arguments, parse_forwarded_env, updates_dir,
+    encode_forwarded, in_app_install_allowed, installer_arguments, parse_forwarded_env, updates_dir,
 };
 use cargo_line_lib::update::net::{check_url, test_feed, NetError, API_URL};
 use cargo_line_lib::update::verify::{expected_hash, sha256_file, verify_file, VerifyError};
@@ -466,41 +466,40 @@ fn the_installer_command_line() {
             "http://127.0.0.1:8765/releases.json".to_string(),
         ),
     ];
+    let hex = encode_forwarded(&forwarded).unwrap();
     assert_eq!(
         installer_arguments(Path::new(r"D:\inst\"), &forwarded).unwrap(),
-        r#"/P /UPDATE /R /ARGS "--env=CARGO_LINE_DATA_DIR=D:\test data" "--env=CARGO_LINE_UPDATE_FEED=http://127.0.0.1:8765/releases.json" /D=D:\inst"#
+        format!(r"/P /UPDATE /R /ARGS --forward={hex} /D=D:\inst")
     );
-    // Values that would break NSIS's own option parsing are refused, never passed on half.
-    let bad = vec![("CARGO_LINE_DATA_DIR".to_string(), r"D:\a /R b".to_string())];
-    assert!(installer_arguments(dir, &bad).is_err());
-    let bad = vec![("CARGO_LINE_DATA_DIR".to_string(), "D:\\\"x".to_string())];
+    // One token: no space, quote or slash for NSIS's option parser to act on.
+    assert!(hex.chars().all(|c| c.is_ascii_hexdigit()));
+    // A newline inside a value can't be encoded line by line: refused, never passed on half.
+    let bad = vec![("CARGO_LINE_DATA_DIR".to_string(), "D:\\a\nb".to_string())];
     assert!(installer_arguments(dir, &bad).is_err());
 }
 
 #[test]
-fn forwarded_overrides_are_read_back_for_allowed_names_only() {
-    let args = [
-        r"--env=CARGO_LINE_DATA_DIR=D:\test data",
-        "--env=CARGO_LINE_UPDATE_FEED=http://127.0.0.1:8765/releases.json",
-        "--env=PATH=C:\\evil",
-        "--env=CARGO_LINE_DATA_DIR=",
-        "--envCARGO_LINE_DATA_DIR=x",
-        "unrelated",
-    ]
-    .map(String::from);
-    assert_eq!(
-        parse_forwarded_env(args),
-        vec![
-            (
-                "CARGO_LINE_DATA_DIR".to_string(),
-                r"D:\test data".to_string()
-            ),
-            (
-                "CARGO_LINE_UPDATE_FEED".to_string(),
-                "http://127.0.0.1:8765/releases.json".to_string()
-            ),
-        ]
-    );
+fn forwarded_overrides_round_trip_for_allowed_names_only() {
+    let forwarded = vec![
+        (
+            "CARGO_LINE_DATA_DIR".to_string(),
+            r#"D:\test "data" /R x"#.to_string(),
+        ),
+        (
+            "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS".to_string(),
+            "--remote-debugging-port=9222".to_string(),
+        ),
+        ("PATH".to_string(), r"C:\evil".to_string()),
+    ];
+    let token = format!("--forward={}", encode_forwarded(&forwarded).unwrap());
+    // NSIS passes the /ARGS text on as typed, possibly with a leading space.
+    let back = parse_forwarded_env([format!(" {token}"), "unrelated".to_string()]);
+    assert_eq!(back, forwarded[..2].to_vec(), "PATH is not an allowed name");
+    // The quoted form NSIS mangled in the desktop session is no longer read at all.
+    assert!(parse_forwarded_env([r"--env=CARGO_LINE_DATA_DIR=D:\x".to_string()]).is_empty());
+    for bad in ["--forward=zz", "--forward=abc", "--forward="] {
+        assert!(parse_forwarded_env([bad.to_string()]).is_empty(), "{bad}");
+    }
 }
 
 /* ------------------------------------------------------------ download folder */

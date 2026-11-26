@@ -9,7 +9,10 @@
 //!   app again when done; `/D=` the existing folder (must be last).
 //! - The app is restarted through the installer, which doesn't pass this process's environment
 //!   on. Test overrides that are set (data folder, feed, WebView2 profile) are therefore forwarded
-//!   as `--env=NAME=VALUE` arguments, so a test install never falls back to the real data folder.
+//!   as one `--forward=<hex>` argument (UTF-8 `NAME=VALUE` lines, hex-encoded), so a test install
+//!   never falls back to the real data folder. One token without spaces or quotes: NSIS's `/ARGS`
+//!   parsing strips the outer quotes of a quoted list, which merged separate quoted arguments
+//!   into one (seen in the Task 20 desktop session).
 
 use std::path::{Path, PathBuf};
 
@@ -27,7 +30,7 @@ pub const FORWARDED_ENV: &[&str] = &[
     "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
     crate::trace::TRACE_ENV,
 ];
-const ENV_ARG: &str = "--env=";
+const FORWARD_ARG: &str = "--forward=";
 
 /// Whether this copy may install updates itself (pure; inputs read by [`current_allows_install`]).
 pub fn in_app_install_allowed(
@@ -66,21 +69,32 @@ pub fn current_allows_install() -> bool {
     )
 }
 
-/// The installer arguments. Fails when an override can't be passed on safely (a `"` or ` /`
-/// inside a value would break the installer's own parsing).
+/// `NAME=VALUE` lines as one hex token (no space, quote or `/` for NSIS to split on).
+pub fn encode_forwarded(forwarded: &[(String, String)]) -> Result<String, String> {
+    let mut text = String::new();
+    for (name, value) in forwarded {
+        if value.contains('\n') || name.contains(['\n', '=']) {
+            return Err(format!("{name} can't be passed to the restarted app"));
+        }
+        if !text.is_empty() {
+            text.push('\n');
+        }
+        text.push_str(&format!("{name}={value}"));
+    }
+    Ok(text.bytes().map(|b| format!("{b:02x}")).collect())
+}
+
+/// The installer arguments.
 pub fn installer_arguments(
     exe_dir: &Path,
     forwarded: &[(String, String)],
 ) -> Result<String, String> {
     let mut args = String::from("/P /UPDATE /R");
     if !forwarded.is_empty() {
-        args.push_str(" /ARGS");
-        for (name, value) in forwarded {
-            if value.contains('"') || value.contains(" /") || name.contains('"') {
-                return Err(format!("{name} can't be passed to the restarted app"));
-            }
-            args.push_str(&format!(" \"{ENV_ARG}{name}={value}\""));
-        }
+        args.push_str(&format!(
+            " /ARGS {FORWARD_ARG}{}",
+            encode_forwarded(forwarded)?
+        ));
     }
     let dir = exe_dir.to_string_lossy();
     if dir.contains('"') {
@@ -104,15 +118,33 @@ pub fn forwarded_now() -> Vec<(String, String)> {
         .collect()
 }
 
-/// `--env=NAME=VALUE` arguments for allowed names (others are ignored).
+/// The `--forward=<hex>` argument, decoded; only allowed names; anything malformed is ignored.
 pub fn parse_forwarded_env<I: IntoIterator<Item = String>>(args: I) -> Vec<(String, String)> {
-    args.into_iter()
-        .filter_map(|a| {
-            let rest = a.strip_prefix(ENV_ARG)?;
-            let (name, value) = rest.split_once('=')?;
+    let Some(hex) = args
+        .into_iter()
+        .find_map(|a| a.trim().strip_prefix(FORWARD_ARG).map(str::to_string))
+    else {
+        return Vec::new();
+    };
+    let Some(text) = decode_hex(&hex).and_then(|b| String::from_utf8(b).ok()) else {
+        return Vec::new();
+    };
+    text.split('\n')
+        .filter_map(|line| {
+            let (name, value) = line.split_once('=')?;
             (FORWARDED_ENV.contains(&name) && !value.is_empty())
                 .then(|| (name.to_string(), value.to_string()))
         })
+        .collect()
+}
+
+fn decode_hex(hex: &str) -> Option<Vec<u8>> {
+    if hex.is_empty() || !hex.len().is_multiple_of(2) || hex.len() > 16 * 1024 {
+        return None;
+    }
+    (0..hex.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(hex.get(i..i + 2)?, 16).ok())
         .collect()
 }
 
