@@ -26,12 +26,38 @@ export function runHeading(run: Pick<HistoryRun, "runNumber" | "runDate">): stri
   return `Run ${runLabel(run.runNumber)} · ${formatRunDate(run.runDate)}`;
 }
 
-/** "4 completed · 1 abandoned · 312 SCU · 248,500 aUEC" (SCU and aUEC: completed only). */
-export function runTotals(run: HistoryRun): string {
+/** "45 min", "2 h 15 min", "26 h 5 min", "2 h" (rounded to the minute). */
+export function formatDuration(ms: number): string {
+  const minutes = Math.max(0, Math.round(ms / 60_000));
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m} min`;
+  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+}
+
+/** "≈ 356,800 aUEC/h" (the backend already rounds to 100). */
+export function formatRate(auecPerHour: number): string {
+  return `≈ ${formatAuec(Math.round(auecPerHour / 100) * 100)} aUEC/h`;
+}
+
+export const RATE_TOOLTIP = "Estimate: completed rewards ÷ time with at least one contract running (accepted → finished).";
+
+/**
+ * The run heading's totals: "16 completed · 5 abandoned · 509 SCU · 802,750 aUEC" (SCU and aUEC:
+ * completed only), then the active time and, when known, the rate.
+ */
+export function runTotalsParts(run: HistoryRun): { base: string; rate: string | null } {
   const parts = [`${run.completed} completed`];
   if (run.abandoned > 0) parts.push(`${run.abandoned} abandoned`);
   parts.push(`${formatScu(run.completedScuMilli)} SCU`, `${formatAuec(run.earnedAuec)} aUEC`);
-  return parts.join(" · ");
+  if (run.activeDurationMs > 0) parts.push(formatDuration(run.activeDurationMs));
+  return { base: parts.join(" · "), rate: run.auecPerHour === null ? null : formatRate(run.auecPerHour) };
+}
+
+/** The whole totals line, e.g. "… · 802,750 aUEC · 2 h 15 min · ≈ 356,800 aUEC/h". */
+export function runTotals(run: HistoryRun): string {
+  const { base, rate } = runTotalsParts(run);
+  return rate ? `${base} · ${rate}` : base;
 }
 
 /** Finish time in local time: "20 Nov 14:32". */

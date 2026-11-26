@@ -30,6 +30,8 @@ const run = (runId: number, runNumber: number, extra: Partial<HistoryRun> = {}):
   abandoned: 1,
   completedScuMilli: 312_000,
   earnedAuec: 248_500,
+  activeDurationMs: 0,
+  auecPerHour: null,
   contracts: [],
   ...extra,
 });

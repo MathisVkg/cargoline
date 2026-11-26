@@ -101,6 +101,15 @@ impl From<ShipError> for CommandError {
                 message: format!("Unknown ship: {ship_id}"),
                 ship_id,
             },
+            ShipError::Invalid(issues) => Self::Validation {
+                issues: issues
+                    .into_iter()
+                    .map(|i| ValidationIssue {
+                        path: i.field.into(),
+                        message: i.message,
+                    })
+                    .collect(),
+            },
             ShipError::Sqlite(e) => Self::Database { message: e.0 },
         }
     }
@@ -625,6 +634,51 @@ pub async fn set_ship_favorite(
             favorite,
             crate::database::now_utc_ms(),
         )?)
+    })
+    .await
+}
+
+/// Adds a custom ship (name 1–60 characters, unique among custom ships ignoring case; 1–100,000
+/// SCU). Validation errors use the `validation` kind with paths `name` and `cargoScu`.
+#[tauri::command]
+pub async fn create_custom_ship(
+    app: AppHandle,
+    input: ships::CustomShipInput,
+) -> Result<ShipEntry, CommandError> {
+    run_blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let db = state.wait_ready(READY_TIMEOUT)?;
+        let mut conn = db.connection()?;
+        Ok(ships::create_custom_ship(&mut conn, &input)?)
+    })
+    .await
+}
+
+/// Renames or resizes a custom ship. A catalog or unknown id is `unknownShip`.
+#[tauri::command]
+pub async fn update_custom_ship(
+    app: AppHandle,
+    id: String,
+    input: ships::CustomShipInput,
+) -> Result<ShipEntry, CommandError> {
+    run_blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let db = state.wait_ready(READY_TIMEOUT)?;
+        let mut conn = db.connection()?;
+        Ok(ships::update_custom_ship(&mut conn, &id, &input)?)
+    })
+    .await
+}
+
+/// Deletes a custom ship, its favourite, and the selection if it was selected. Contracts are never
+/// affected. Returns whether it was the selected ship.
+#[tauri::command]
+pub async fn delete_custom_ship(app: AppHandle, id: String) -> Result<bool, CommandError> {
+    run_blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let db = state.wait_ready(READY_TIMEOUT)?;
+        let mut conn = db.connection()?;
+        Ok(ships::delete_custom_ship(&mut conn, &id)?)
     })
     .await
 }

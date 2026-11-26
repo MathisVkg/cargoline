@@ -105,7 +105,10 @@ pub fn run() {
             commands::get_selected_ship,
             commands::set_selected_ship,
             commands::set_ship_favorite,
-            commands::get_ship_catalog_info
+            commands::get_ship_catalog_info,
+            commands::create_custom_ship,
+            commands::update_custom_ship,
+            commands::delete_custom_ship
         ])
         .run(tauri::generate_context!())
         .expect("error while running Cargo Line");

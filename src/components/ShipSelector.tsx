@@ -1,8 +1,17 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react";
-import { Check, ChevronDown, Rocket, Search, Star } from "lucide-react";
-import { shipOptions } from "../features/ships/model";
-import { clearShipError, loadShips, selectShip, toggleFavorite, useShips } from "../features/ships/store";
+import { Check, ChevronDown, Pencil, Plus, Rocket, Search, Star, Trash2 } from "lucide-react";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { describeError, toCommandError } from "../features/contracts/api";
+import { CustomShipDialog } from "../features/ships/CustomShipDialog";
+import { deleteCustomQuestion, shipOptions } from "../features/ships/model";
+import { clearShipError, loadShips, removeCustomShip, selectShip, toggleFavorite, useShips } from "../features/ships/store";
 import type { ShipEntry } from "../features/ships/types";
+
+/** Edit and Delete of a custom ship, opened from its row. */
+interface RowActions {
+  onEdit: (ship: ShipEntry) => void;
+  onDelete: (ship: ShipEntry) => void;
+}
 
 interface Placement {
   top: number;
@@ -13,9 +22,11 @@ interface Placement {
  * Top-bar ship selector (Task 11). Informational only: the selected ship gives the Contracts
  * summary its capacity; it is never linked to contracts or runs.
  *
- * Popover pattern: the trigger opens a small dialog with a search field and the list (favourites
- * first). ArrowDown / ArrowUp move between ships, Enter or a click selects, the star toggles a
- * favourite without selecting, Escape closes and returns focus to the trigger.
+ * Popover pattern: the trigger opens a small dialog with a search field and the list: Favourites,
+ * then Custom ships, then All ships. ArrowDown / ArrowUp move between ships, Enter or a click
+ * selects, the star toggles a favourite without selecting, Escape closes and returns focus to the
+ * trigger. Custom ships (Task 15) also have Edit and Delete buttons; "+ Add custom ship…" opens the
+ * add dialog, and the new ship is selected.
  */
 export function ShipSelector() {
   const id = useId();
@@ -26,6 +37,9 @@ export function ShipSelector() {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  // Custom ship dialogs: null = closed; editing null = add.
+  const [shipDialog, setShipDialog] = useState<{ editing: ShipEntry | null } | null>(null);
+  const [deleting, setDeleting] = useState<ShipEntry | null>(null);
 
   useEffect(() => {
     void loadShips();
@@ -63,8 +77,19 @@ export function ShipSelector() {
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [open]);
 
-  const { favorites, others } = shipOptions(ships, query);
-  const total = favorites.length + others.length;
+  const { favorites, custom, others } = shipOptions(ships, query);
+  const total = favorites.length + custom.length + others.length;
+  // The popover closes first; the dialogs are modal and return focus to the trigger.
+  const actions: RowActions = {
+    onEdit: (ship) => {
+      close(false);
+      setShipDialog({ editing: ship });
+    },
+    onDelete: (ship) => {
+      close(false);
+      setDeleting(ship);
+    },
+  };
 
   const choose = (shipId: string | null) => {
     void selectShip(shipId);
@@ -104,7 +129,7 @@ export function ShipSelector() {
     } else if (event.key === "Enter" && target === searchRef.current) {
       // Enter in the search field picks the only match.
       event.preventDefault();
-      const only = total === 1 ? (favorites[0] ?? others[0]) : null;
+      const only = total === 1 ? (favorites[0] ?? custom[0] ?? others[0]) : null;
       if (only) choose(only.id);
     }
   };
@@ -174,15 +199,62 @@ export function ShipSelector() {
               onSelect={() => choose(null)}
             />
             {favorites.length > 0 && <GroupLabel>Favourites</GroupLabel>}
-            <ShipList ships={favorites} selectedId={selected?.id ?? null} onSelect={choose} />
-            {others.length > 0 && favorites.length > 0 && <GroupLabel>All ships</GroupLabel>}
-            <ShipList ships={others} selectedId={selected?.id ?? null} onSelect={choose} />
+            <ShipList ships={favorites} selectedId={selected?.id ?? null} onSelect={choose} actions={actions} />
+            {custom.length > 0 && <GroupLabel>Custom ships</GroupLabel>}
+            <ShipList ships={custom} selectedId={selected?.id ?? null} onSelect={choose} actions={actions} />
+            {others.length > 0 && (favorites.length > 0 || custom.length > 0) && <GroupLabel>All ships</GroupLabel>}
+            <ShipList ships={others} selectedId={selected?.id ?? null} onSelect={choose} actions={actions} />
             {total === 0 && <p className="px-3 py-4 text-center text-sm text-dim">No ship matches “{query.trim()}”.</p>}
           </div>
-          <p className="border-t border-line px-3 py-1.5 text-[11px] text-dim">
-            Informational only · data from the Star Citizen Wiki
-          </p>
+          <div className="border-t border-line">
+            <button
+              type="button"
+              onClick={() => {
+                close(false);
+                setShipDialog({ editing: null });
+              }}
+              className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm text-muted transition-colors duration-100 hover:bg-raised hover:text-fg focus-visible:bg-raised focus-visible:outline-offset-[-2px]"
+            >
+              <Plus className="size-3.5 shrink-0" aria-hidden="true" />
+              Add custom ship…
+            </button>
+            <p className="px-3 pb-1.5 text-[11px] text-dim">Informational only · catalog data from the Star Citizen Wiki</p>
+          </div>
         </div>
+      )}
+
+      {shipDialog && (
+        <CustomShipDialog
+          editing={shipDialog.editing}
+          onClose={() => {
+            setShipDialog(null);
+            triggerRef.current?.focus();
+          }}
+        />
+      )}
+      {deleting && (
+        <ConfirmDialog
+          id="delete-custom-ship"
+          heading="Delete custom ship"
+          confirmLabel="Delete"
+          danger
+          onCancel={() => {
+            setDeleting(null);
+            triggerRef.current?.focus();
+          }}
+          onConfirm={async () => {
+            try {
+              await removeCustomShip(deleting.id);
+              setDeleting(null);
+              triggerRef.current?.focus();
+              return { ok: true };
+            } catch (thrown) {
+              return { ok: false, message: describeError(toCommandError(thrown)) };
+            }
+          }}
+        >
+          {deleteCustomQuestion(deleting.name)}
+        </ConfirmDialog>
       )}
     </div>
   );
@@ -196,24 +268,39 @@ function ShipList({
   ships,
   selectedId,
   onSelect,
+  actions,
 }: {
   ships: ShipEntry[];
   selectedId: string | null;
   onSelect: (id: string) => void;
+  actions: RowActions;
 }) {
   if (ships.length === 0) return null;
   return (
     <ul className="flex flex-col">
       {ships.map((ship) => (
         <li key={ship.id}>
-          <ShipRow ship={ship} selected={ship.id === selectedId} onSelect={() => onSelect(ship.id)} />
+          <ShipRow ship={ship} selected={ship.id === selectedId} onSelect={() => onSelect(ship.id)} actions={actions} />
         </li>
       ))}
     </ul>
   );
 }
 
-function ShipRow({ ship, selected, onSelect }: { ship: ShipEntry | null; selected: boolean; onSelect: () => void }) {
+const ICON_BUTTON =
+  "grid size-8 shrink-0 place-items-center rounded-sm text-dim transition-colors duration-100 hover:bg-raised";
+
+function ShipRow({
+  ship,
+  selected,
+  onSelect,
+  actions,
+}: {
+  ship: ShipEntry | null;
+  selected: boolean;
+  onSelect: () => void;
+  actions?: RowActions;
+}) {
   return (
     <div className="group flex items-center pr-1.5">
       <button
@@ -230,8 +317,17 @@ function ShipRow({ ship, selected, onSelect }: { ship: ShipEntry | null; selecte
         {ship ? (
           <>
             <span className="min-w-0 flex-1">
-              <span className="block truncate">{ship.name}</span>
-              <span className="block truncate text-xs text-dim">{ship.manufacturer}</span>
+              <span className="block truncate" title={ship.name}>
+                {ship.name}
+              </span>
+              {/* Custom ships: the tag takes the manufacturer's line, so the name keeps its width. */}
+              {ship.isCustom ? (
+                <span className="mt-0.5 inline-block rounded-sm border border-line-strong px-1 font-mono text-[10px] leading-4 tracking-wider text-muted uppercase">
+                  Custom
+                </span>
+              ) : (
+                <span className="block truncate text-xs text-dim">{ship.manufacturer}</span>
+              )}
             </span>
             <span className="shrink-0 font-mono text-xs text-dim tabular-nums">{ship.cargoScu.toLocaleString("en-US")} SCU</span>
           </>
@@ -239,6 +335,16 @@ function ShipRow({ ship, selected, onSelect }: { ship: ShipEntry | null; selecte
           <span className="min-w-0 flex-1 truncate italic">No ship</span>
         )}
       </button>
+      {ship?.isCustom && actions && (
+        <>
+          <button type="button" aria-label={`Edit ${ship.name}`} title="Edit custom ship" onClick={() => actions.onEdit(ship)} className={`${ICON_BUTTON} hover:text-fg`}>
+            <Pencil className="size-3.5" aria-hidden="true" />
+          </button>
+          <button type="button" aria-label={`Delete ${ship.name}`} title="Delete custom ship" onClick={() => actions.onDelete(ship)} className={`${ICON_BUTTON} hover:text-danger`}>
+            <Trash2 className="size-3.5" aria-hidden="true" />
+          </button>
+        </>
+      )}
       {ship && (
         <button
           type="button"

@@ -6,6 +6,8 @@ import { getSettings, updateCaptureSettings } from "../features/capture/api";
 import type { AppSettings, CaptureSettingsInput, CaptureSource, CompleteFromGameMode } from "../features/capture/types";
 import { getShipCatalogInfo } from "../features/ships/api";
 import { catalogLine } from "../features/ships/model";
+import { loadShips, useShips } from "../features/ships/store";
+import type { CatalogInfo } from "../features/ships/types";
 import { describeError, toCommandError } from "../features/contracts/api";
 import {
   announceSettingsChanged,
@@ -247,20 +249,24 @@ function GameSection({ game }: { game: GameLogSettings }) {
   );
 }
 
+/** "100 ships, 2 custom · game … · Star Citizen Wiki" (custom ships from the shared ship store). */
 function CatalogLine() {
-  const [text, setText] = useState<string | null>(null);
+  const [info, setInfo] = useState<CatalogInfo | null>(null);
   const [failed, setFailed] = useState(false);
+  const { ships } = useShips();
+  const customCount = ships.filter((s) => s.isCustom).length;
   useEffect(() => {
     let cancelled = false;
+    void loadShips();
     getShipCatalogInfo()
-      .then((info) => !cancelled && setText(catalogLine(info)))
+      .then((next) => !cancelled && setInfo(next))
       .catch(() => !cancelled && setFailed(true));
     return () => {
       cancelled = true;
     };
   }, []);
   if (failed) return <span className="text-sm text-danger">Ship catalog could not be loaded</span>;
-  return <span className="text-sm break-words text-fg">{text ?? "—"}</span>;
+  return <span className="text-sm break-words text-fg">{info ? catalogLine(info, customCount) : "—"}</span>;
 }
 
 function SmallButton({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: ReactNode }) {

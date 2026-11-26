@@ -1,9 +1,9 @@
 // Shared ship state for the top-bar selector and the Contracts summary (Task 11).
 import { useSyncExternalStore } from "react";
 import { describeError, toCommandError } from "../contracts/api";
-import { getSelectedShip, listShips, setSelectedShip, setShipFavorite } from "./api";
+import { createCustomShip, deleteCustomShip, getSelectedShip, listShips, setSelectedShip, setShipFavorite, updateCustomShip } from "./api";
 import { withFavorite } from "./model";
-import type { ShipEntry } from "./types";
+import type { CustomShipInput, ShipEntry } from "./types";
 
 export interface ShipState {
   loaded: boolean;
@@ -55,6 +55,29 @@ export async function toggleFavorite(id: string, favorite: boolean): Promise<voi
   } catch (e) {
     set({ ships: withFavorite(state.ships, id, !favorite), error: message(e) });
   }
+}
+
+/** Adds a custom ship and selects it. Throws the command error (the dialog shows it). */
+export async function addCustomShip(input: CustomShipInput): Promise<ShipEntry> {
+  const created = await createCustomShip(input);
+  const [ships, saved] = await Promise.all([listShips(), setSelectedShip(created.id)]);
+  set({ ships, selected: saved.ship, stale: false, error: null });
+  return created;
+}
+
+/** Edits a custom ship; the selection follows the new name and capacity. Throws on error. */
+export async function editCustomShip(id: string, input: CustomShipInput): Promise<ShipEntry> {
+  const updated = await updateCustomShip(id, input);
+  const ships = await listShips();
+  set({ ships, selected: state.selected?.id === id ? (ships.find((s) => s.id === id) ?? null) : state.selected, error: null });
+  return updated;
+}
+
+/** Deletes a custom ship; clears the selection when it was selected. Throws on error. */
+export async function removeCustomShip(id: string): Promise<void> {
+  const wasSelected = await deleteCustomShip(id);
+  const ships = await listShips();
+  set({ ships, selected: wasSelected || state.selected?.id === id ? null : state.selected, stale: false, error: null });
 }
 
 export function dismissStale(): void {

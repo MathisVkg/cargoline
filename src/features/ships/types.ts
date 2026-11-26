@@ -9,6 +9,15 @@ export interface ShipEntry {
   cargoScu: number;
   maxContainerScu: number | null;
   isFavorite: boolean;
+  /** Added by the user (Task 15): manufacturer "Custom", id `custom:…`. */
+  isCustom: boolean;
+}
+
+/** `create_custom_ship` / `update_custom_ship` input. */
+export interface CustomShipInput {
+  name: string;
+  /** Whole SCU, 1–100,000. */
+  cargoScu: number;
 }
 
 /** `get_selected_ship` / `set_selected_ship`. `stale`: the saved ship left the list and was cleared. */

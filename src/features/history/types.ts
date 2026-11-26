@@ -17,6 +17,10 @@ export interface HistoryRun {
   abandoned: number;
   completedScuMilli: number;
   earnedAuec: number;
+  /** Union of the [accepted, finished] intervals of the run's finished contracts. */
+  activeDurationMs: number;
+  /** Completed rewards ÷ active hours, rounded to 100; null under 10 min or with nothing completed. */
+  auecPerHour: number | null;
   /** Finished contracts of the run, newest finish first. */
   contracts: ContractDetail[];
 }

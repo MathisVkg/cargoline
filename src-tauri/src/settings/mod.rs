@@ -75,6 +75,18 @@ pub fn update(
     Ok(settings)
 }
 
+/// Like [`update`], inside the caller's transaction (which it neither opens nor commits).
+pub(crate) fn update_in(
+    conn: &Connection,
+    change: impl FnOnce(&mut AppSettings),
+) -> Result<AppSettings, SettingsError> {
+    let mut settings = load(conn)?;
+    change(&mut settings);
+    settings.validate()?;
+    write_all(conn, &settings)?;
+    Ok(settings)
+}
+
 /// Removes every stored setting so all fields return to their defaults.
 pub fn restore_defaults(conn: &mut Connection) -> Result<AppSettings, SettingsError> {
     let tx = conn.transaction()?;

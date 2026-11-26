@@ -37,8 +37,49 @@ pub struct HistoryRun {
     pub abandoned: i64,
     pub completed_scu_milli: i64,
     pub earned_auec: i64,
+    /// Union of the [accepted_at, finished_at] intervals of the run's finished contracts
+    /// (completed and abandoned): overlaps count once, gaps between sessions are not counted.
+    pub active_duration_ms: i64,
+    /// `earned_auec` ÷ active hours, rounded to the nearest 100. None when nothing was completed
+    /// or the active time is under 10 minutes.
+    pub auec_per_hour: Option<i64>,
     /// Finished contracts of this run, newest finish first.
     pub contracts: Vec<ContractDetail>,
+}
+
+/// Below this active time a rate is not meaningful.
+pub const MIN_RATE_DURATION_MS: i64 = 10 * 60 * 1000;
+const HOUR_MS: f64 = 3_600_000.0;
+
+/// Total length of the union of `[start, end]` intervals (overlapping and nested ones count once).
+pub fn union_duration_ms(intervals: &[(i64, i64)]) -> i64 {
+    let mut sorted: Vec<(i64, i64)> = intervals.iter().copied().filter(|(a, b)| b > a).collect();
+    sorted.sort_unstable();
+    let mut total = 0;
+    let mut current: Option<(i64, i64)> = None;
+    for (start, end) in sorted {
+        match current {
+            Some((s, e)) if start <= e => current = Some((s, e.max(end))),
+            Some((s, e)) => {
+                total += e - s;
+                current = Some((start, end));
+            }
+            None => current = Some((start, end)),
+        }
+    }
+    if let Some((s, e)) = current {
+        total += e - s;
+    }
+    total
+}
+
+/// aUEC per hour rounded to the nearest 100, or None (no completed contract, or under 10 min).
+pub fn auec_per_hour(earned_auec: i64, completed: i64, active_ms: i64) -> Option<i64> {
+    if completed == 0 || active_ms < MIN_RATE_DURATION_MS {
+        return None;
+    }
+    let rate = earned_auec as f64 * HOUR_MS / active_ms as f64;
+    Some(((rate / 100.0).round() * 100.0) as i64)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -70,6 +111,8 @@ pub fn build_history(mut contracts: Vec<ContractDetail>) -> History {
                 abandoned: 0,
                 completed_scu_milli: 0,
                 earned_auec: 0,
+                active_duration_ms: 0,
+                auec_per_hour: None,
                 contracts: Vec::new(),
             });
         match contract.status {
@@ -85,6 +128,15 @@ pub fn build_history(mut contracts: Vec<ContractDetail>) -> History {
             ContractStatus::Active => continue, // never listed (the query excludes them)
         }
         run.contracts.push(contract);
+    }
+    for run in runs.values_mut() {
+        let intervals: Vec<(i64, i64)> = run
+            .contracts
+            .iter()
+            .filter_map(|c| c.finished_at.map(|f| (c.accepted_at, f)))
+            .collect();
+        run.active_duration_ms = union_duration_ms(&intervals);
+        run.auec_per_hour = auec_per_hour(run.earned_auec, run.completed, run.active_duration_ms);
     }
     History {
         stats,

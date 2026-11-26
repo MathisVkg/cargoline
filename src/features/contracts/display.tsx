@@ -65,10 +65,12 @@ interface GroupHeaderProps {
   aside?: ReactNode;
   leading?: ReactNode;
   className?: string;
+  /** Sizing of the right-hand side; default `shrink-0` (never wraps). */
+  asideClassName?: string;
 }
 
 /** Full-width expand/collapse header for a display group. */
-export function GroupHeader({ expanded, controls, onToggle, title, meta, aside, leading, className = "" }: GroupHeaderProps) {
+export function GroupHeader({ expanded, controls, onToggle, title, meta, aside, leading, className = "", asideClassName = "shrink-0" }: GroupHeaderProps) {
   return (
     <button
       type="button"
@@ -89,7 +91,7 @@ export function GroupHeader({ expanded, controls, onToggle, title, meta, aside, 
         <span className="block text-sm font-semibold break-words text-fg">{title}</span>
         {meta && <span className="label-tech block">{meta}</span>}
       </span>
-      {aside && <span className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-0.5">{aside}</span>}
+      {aside && <span className={`flex ${asideClassName} flex-wrap items-center justify-end gap-x-3 gap-y-0.5`}>{aside}</span>}
     </button>
   );
 }

@@ -21,7 +21,8 @@ import {
   restoredNotice,
   restoreQuestion,
   runHeading,
-  runTotals,
+  RATE_TOOLTIP,
+  runTotalsParts,
   statusLabel,
 } from "../features/history/model";
 import type { History, HistoryRun } from "../features/history/types";
@@ -304,6 +305,25 @@ function Stat({
   );
 }
 
+/** Run totals; the rate (when known) carries the estimate tooltip. Wraps on narrow widths. */
+function RunTotals({ run }: { run: HistoryRun }) {
+  const { base, rate } = runTotalsParts(run);
+  return (
+    <span className="text-right font-mono text-xs text-muted">
+      {base}
+      {rate && (
+        <>
+          {" · "}
+          <span title={RATE_TOOLTIP} className="cursor-help underline decoration-dotted decoration-dim/60 underline-offset-2">
+            {rate}
+            <span className="sr-only"> ({RATE_TOOLTIP})</span>
+          </span>
+        </>
+      )}
+    </span>
+  );
+}
+
 function RunSection({
   run,
   expanded,
@@ -328,7 +348,9 @@ function RunSection({
           controls={bodyId}
           onToggle={onToggle}
           title={runHeading(run)}
-          aside={<span className="font-mono text-xs text-muted">{runTotals(run)}</span>}
+          aside={<RunTotals run={run} />}
+          // Long totals (with the time and rate) wrap instead of squeezing the run title.
+          asideClassName="min-w-0 max-w-[65%] shrink"
         />
       </h3>
       <ol id={bodyId} hidden={!expanded} aria-label={`Finished contracts of ${runHeading(run)}`} className="pb-1.5 pl-6">
