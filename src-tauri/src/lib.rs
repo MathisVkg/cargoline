@@ -19,6 +19,7 @@ pub mod settings;
 pub mod ships;
 pub mod startup;
 pub mod trace;
+pub mod update;
 
 use database::{Database, DatabaseState, DATABASE_FILE_NAME};
 use tauri::{Manager, Runtime};
@@ -73,6 +74,8 @@ pub fn local_data_dir<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<st
 /// Builds and runs the Tauri application.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Test overrides passed on by an in-app update's restart (`--env=NAME=VALUE`, Task 20).
+    update::install::apply_forwarded_env();
     trace::init();
     trace::mark("main entered");
     // Portable copy: refuse a read-only or temporary folder, and keep WebView2's profile in
@@ -89,6 +92,7 @@ pub fn run() {
         .manage(gamelog::service::GameLogState::default())
         .manage(backup::StartupNoticeState::default())
         .manage(startup::FirstScreenGate::default())
+        .manage(update::UpdateState::default())
         .register_asynchronous_uri_scheme_protocol("capture", |ctx, request, responder| {
             let app = ctx.app_handle().clone();
             let path = request.uri().path().to_string();
@@ -108,6 +112,7 @@ pub fn run() {
             start_database(app.handle());
             capture::service::start_cleanup(app.handle());
             gamelog::service::start(app.handle());
+            update::start(app.handle());
             trace::mark("setup end");
             Ok(())
         })
@@ -157,7 +162,14 @@ pub fn run() {
             commands::take_startup_notice,
             commands::open_link,
             commands::get_about_info,
-            commands::trace_marks
+            commands::trace_marks,
+            commands::get_update_status,
+            commands::check_for_updates,
+            commands::set_update_automatic,
+            commands::skip_update_version,
+            commands::download_update,
+            commands::cancel_update_download,
+            commands::install_update
         ])
         .run(tauri::generate_context!())
         .expect("error while running Cargo Line");
@@ -234,6 +246,10 @@ fn start_database<R: Runtime>(app: &tauri::AppHandle<R>) {
             app.state::<DatabaseState>().set(outcome);
             trace::mark("database ready for commands");
             if let Ok(db) = app.state::<DatabaseState>().get() {
+                // After an in-app update: "Updated to version X" (Task 20).
+                if let Ok(mut conn) = db.connection() {
+                    update::note_finished_update(&app, &mut conn);
+                }
                 // Game.log monitoring starts only if it was switched on in the settings.
                 if let Ok(saved) = db
                     .connection()

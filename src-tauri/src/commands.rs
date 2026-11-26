@@ -901,8 +901,12 @@ pub fn take_startup_notice(app: AppHandle) -> Option<StartupNotice> {
 /// Opens one of the About links in the default browser. The frontend sends a key; the URL comes
 /// from the fixed allow-list.
 #[tauri::command]
-pub fn open_link(key: String) -> Result<(), CommandError> {
-    let Some(url) = backup::link_url(&key) else {
+pub fn open_link(app: AppHandle, key: String) -> Result<(), CommandError> {
+    // "release": the offered release's page, checked against its allow-listed pattern (Task 20).
+    let release = (key == "release")
+        .then(|| crate::update::release_page(&app))
+        .flatten();
+    let Some(url) = release.as_deref().or(backup::link_url(&key)) else {
         return Err(CommandError::Backup {
             reason: BackupFailure::UnknownLink,
             message: format!("Unknown link: {key}"),
@@ -932,6 +936,8 @@ pub struct AboutInfo {
     pub version: String,
     /// `installed`, `portable` or `dev` (a debug build). Task 20: only `installed` self-updates.
     pub mode: crate::layout::AppMode,
+    /// Whether this copy installs updates itself (a real installed copy, Task 20).
+    pub in_app_update: bool,
     pub catalogs: Vec<CatalogCredit>,
     /// THIRD_PARTY_NOTICES.md, embedded at build time.
     pub third_party_notices: &'static str,
@@ -966,6 +972,7 @@ pub fn get_about_info(app: AppHandle) -> Result<AboutInfo, CommandError> {
     Ok(AboutInfo {
         version: app.package_info().version.to_string(),
         mode: crate::layout::current().mode,
+        in_app_update: crate::update::install::current_allows_install(),
         catalogs,
         third_party_notices: THIRD_PARTY_NOTICES,
     })
@@ -1289,4 +1296,83 @@ pub async fn update_capture_shortcut(
         })
     })
     .await
+}
+
+/* ---------------------------------------------------------------- updates (Task 20) */
+
+/// The update status for Settings → Updates and the top-bar marker.
+#[tauri::command]
+pub async fn get_update_status(app: AppHandle) -> Result<crate::update::UpdateStatus, String> {
+    run_blocking(move || Ok(crate::update::status(&app)))
+        .await
+        .map_err(|e| format!("{e:?}"))
+}
+
+/// "Check now": always asks GitHub, then returns the new status.
+#[tauri::command]
+pub async fn check_for_updates(app: AppHandle) -> Result<crate::update::UpdateStatus, String> {
+    run_blocking(move || {
+        crate::update::check(&app);
+        Ok(crate::update::status(&app))
+    })
+    .await
+    .map_err(|e| format!("{e:?}"))
+}
+
+/// "Check for updates automatically".
+#[tauri::command]
+pub async fn set_update_automatic(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<crate::update::UpdateStatus, String> {
+    run_blocking(move || {
+        let db = app.state::<DatabaseState>();
+        let db = db.wait_ready(READY_TIMEOUT)?;
+        let mut conn = db.connection()?;
+        settings::update(&mut conn, |s| s.check_updates_automatically = enabled)?;
+        drop(conn);
+        crate::update::notify(&app);
+        Ok(crate::update::status(&app))
+    })
+    .await
+    .map_err(|e| format!("{e:?}"))
+}
+
+/// "Skip this version": hides the marker for this exact version.
+#[tauri::command]
+pub async fn skip_update_version(
+    app: AppHandle,
+    version: String,
+) -> Result<crate::update::UpdateStatus, String> {
+    run_blocking(move || {
+        let db = app.state::<DatabaseState>();
+        let db = db.wait_ready(READY_TIMEOUT)?;
+        let mut conn = db.connection()?;
+        settings::update(&mut conn, |s| s.update_skipped_version = Some(version))?;
+        drop(conn);
+        crate::update::notify(&app);
+        Ok(crate::update::status(&app))
+    })
+    .await
+    .map_err(|e| format!("{e:?}"))
+}
+
+/// Starts downloading and verifying the offered installer (installed copies only). Progress
+/// arrives through the `update-status` event.
+#[tauri::command]
+pub fn download_update(app: AppHandle) -> Result<(), String> {
+    crate::update::start_download(&app)
+}
+
+#[tauri::command]
+pub fn cancel_update_download(app: AppHandle) {
+    crate::update::cancel_download(&app);
+}
+
+/// Closes the app and runs the verified installer, which reopens the app.
+#[tauri::command]
+pub async fn install_update(app: AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || crate::update::install_now(&app))
+        .await
+        .map_err(|e| e.to_string())?
 }

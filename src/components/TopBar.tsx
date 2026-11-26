@@ -1,6 +1,27 @@
+import { ArrowUpCircle } from "lucide-react";
 import { ShipSelector } from "./ShipSelector";
+import { useUpdateStatus } from "../features/update/api";
+import { UPDATE_MARKER_TEXT, markerVisible } from "../features/update/model";
 
-export function TopBar() {
+/** A quiet "Update available" line (Task 20): opens Settings → Updates. Never a pop-up. */
+function UpdateMarker({ onOpen }: { onOpen: () => void }) {
+  const [status] = useUpdateStatus(false);
+  if (!markerVisible(status)) return null;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      data-update-marker
+      title={`Version ${status?.offer?.version} is available`}
+      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-sm px-2 text-xs font-medium text-accent hover:bg-raised"
+    >
+      <ArrowUpCircle className="size-3.5" aria-hidden="true" />
+      <span className="hidden sm:inline">{UPDATE_MARKER_TEXT}</span>
+    </button>
+  );
+}
+
+export function TopBar({ onOpenUpdates }: { onOpenUpdates: () => void }) {
   return (
     <header className="flex h-14 min-w-0 items-center justify-between gap-4 border-b border-line bg-surface px-4 sm:px-6">
       <div className="flex min-w-0 items-center gap-3">
@@ -10,7 +31,10 @@ export function TopBar() {
           <span className="label-tech hidden truncate md:inline">Hauling contract manager</span>
         </div>
       </div>
-      <ShipSelector />
+      <div className="flex min-w-0 items-center gap-2">
+        <UpdateMarker onOpen={onOpenUpdates} />
+        <ShipSelector />
+      </div>
     </header>
   );
 }

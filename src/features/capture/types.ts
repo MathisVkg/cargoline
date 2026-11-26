@@ -16,7 +16,10 @@ export interface AppSettings {
   complete_from_game: boolean;
   complete_from_game_mode: CompleteFromGameMode;
   selected_ship_id: string | null;
-  automatic_update_checks: boolean;
+  check_updates_automatically: boolean;
+  update_last_check_ms: number | null;
+  update_skipped_version: string | null;
+  update_installing_version: string | null;
   contract_grouping: string;
 }
 

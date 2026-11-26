@@ -1,6 +1,6 @@
 [package]
 name = "cargo-line"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 description = "Cargo Line — offline-first Star Citizen hauling contract manager (unofficial)"
 authors = ["Cargo Line contributors"]
 license = "GPL-3.0-only"
@@ -22,6 +22,8 @@ tauri = { version = "2", features = [] }
 rusqlite = { version = "0.41", features = ["bundled"] }
 rusqlite_migration = "2.7"
 serde = { version = "1", features = ["derive"] }
+# Version comparison for the update check (Task 20; already in the tree through tauri-utils).
+semver = "1"
 serde_json = "1"
 thiserror = "2"
 # Local calendar date and UTC offset for date-based runs (already a Tauri dependency).
@@ -47,8 +49,11 @@ windows = { version = "0.62", features = [
   "Win32_Graphics_Dxgi",
   "Win32_Graphics_Dxgi_Common",
   "Win32_Graphics_Gdi",
+  "Win32_Networking_WinHttp",
+  "Win32_Security_Cryptography",
   "Win32_Storage_FileSystem",
   "Win32_Storage_Xps",
+  "Win32_System_Registry",
   "Win32_System_Threading",
   "Win32_System_WinRT",
   "Win32_System_WinRT_Direct3D11",

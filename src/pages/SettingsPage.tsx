@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { getVersion } from "@tauri-apps/api/app";
 import { ExternalLink, RefreshCw } from "lucide-react";
-import { DisabledButton, PageContainer, PageHeader } from "../components/ui";
+import { PageContainer, PageHeader } from "../components/ui";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import {
   chooseBackupDestination,
@@ -27,7 +26,6 @@ import {
   SCREENSHOTS_NOT_INCLUDED,
   SETTINGS_DESCRIPTION,
   UNOFFICIAL,
-  UPDATES_HINT,
   backupContents,
   catalogCreditLine,
   exportNotice,
@@ -38,6 +36,31 @@ import {
   type LinkKey,
 } from "../features/data/model";
 import { getSettings, updateCaptureSettings } from "../features/capture/api";
+import {
+  cancelUpdateDownload,
+  checkForUpdates,
+  downloadUpdate,
+  installUpdate,
+  setUpdateAutomatic,
+  skipUpdateVersion,
+  useUpdateStatus,
+} from "../features/update/api";
+import {
+  AUTOMATIC_HINT,
+  AUTOMATIC_LABEL,
+  FULL_NOTES_TEXT,
+  INSTALL_HEADING,
+  MANUAL_HINT,
+  PORTABLE_HINT,
+  UPDATES_SECTION_ID,
+  checkResultText,
+  downloadText,
+  installConfirmText,
+  lastCheckText,
+  releaseDateText,
+  updateAction,
+  type UpdateStatus,
+} from "../features/update/model";
 import type { AppSettings, CaptureSettingsInput, CaptureSource, CompleteFromGameMode } from "../features/capture/types";
 import { getShipCatalogInfo } from "../features/ships/api";
 import { catalogLine } from "../features/ships/model";
@@ -576,18 +599,110 @@ function CompleteModeChoice({ mode, onChange }: { mode: CompleteFromGameMode; on
   );
 }
 
+/** Settings → Updates (Task 20): version and mode, the automatic check, Check now, the offer. */
 function UpdatesSection() {
-  const version = useAppVersion();
+  const [status, setStatus] = useUpdateStatus();
+  const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const act = async (job: () => Promise<UpdateStatus | void>) => {
+    setError(null);
+    try {
+      const next = await job();
+      if (next) setStatus(next);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  };
+  const offer = status?.offer ?? null;
+  const action = status ? updateAction(status) : "none";
+  const resultText = status?.checking ? "Checking…" : checkResultText(status?.result ?? null);
+  const progress = status ? downloadText(status.download) : null;
   return (
-    <SettingsSection index="03" title="Updates">
+    <SettingsSection index="03" title="Updates" id={UPDATES_SECTION_ID}>
       <Row label="Current version">
-        <span className="font-mono text-sm text-fg">{version ?? "—"}</span>
+        <span className="font-mono text-sm text-fg">{status ? aboutVersionLine(status.currentVersion, status.mode) : "—"}</span>
       </Row>
-      <Row label="Check for updates" hint={UPDATES_HINT}>
-        <DisabledButton icon={RefreshCw} note={UPDATES_HINT}>
-          Check now
-        </DisabledButton>
+      <Row label={AUTOMATIC_LABEL} hint={AUTOMATIC_HINT}>
+        <Switch
+          label={AUTOMATIC_LABEL}
+          checked={status?.automatic ?? false}
+          disabled={!status}
+          onChange={(on) => void act(() => setUpdateAutomatic(on))}
+        />
       </Row>
+      <Row label="Check for updates" hint={status ? lastCheckText(status.lastCheckMs) : undefined}>
+        <SmallButton onClick={() => void act(checkForUpdates)} disabled={!status || status.checking}>
+          <span className="inline-flex items-center gap-1.5">
+            <RefreshCw className={["size-3.5", status?.checking ? "animate-spin" : ""].join(" ")} aria-hidden="true" />
+            Check now
+          </span>
+        </SmallButton>
+      </Row>
+      {resultText && (
+        <p role="status" className="px-4 py-3 text-sm break-words text-fg">
+          {resultText}
+        </p>
+      )}
+      {offer && status && (
+        <div className="space-y-3 px-4 py-3">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <p className="text-sm font-semibold text-fg">Version {offer.version}</p>
+            {releaseDateText(offer.publishedAt) && <p className="text-xs text-dim">{releaseDateText(offer.publishedAt)}</p>}
+            {status.skippedVersion === offer.version && <p className="text-xs text-dim">Skipped</p>}
+          </div>
+          {offer.notes && (
+            // Plain text: React escapes it, nothing is parsed as Markdown or HTML.
+            <p className="max-h-60 overflow-y-auto font-mono text-xs leading-relaxed break-words whitespace-pre-wrap text-muted" data-release-notes>
+              {offer.notes}
+            </p>
+          )}
+          {offer.notesTruncated && <LinkButton onClick={() => void openLink("release").catch(() => undefined)}>{FULL_NOTES_TEXT}</LinkButton>}
+          {progress && (
+            <p role="status" className="text-sm break-words text-fg">
+              {progress}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {action === "download" && <SmallButton onClick={() => void act(downloadUpdate)}>Download and install</SmallButton>}
+            {action === "downloading" && <SmallButton onClick={() => void act(cancelUpdateDownload)}>Cancel</SmallButton>}
+            {action === "installNow" && <SmallButton onClick={() => setConfirming(true)}>Install now</SmallButton>}
+            {action === "openPage" && (
+              <SmallButton onClick={() => void act(() => openLink("release"))}>
+                <span className="inline-flex items-center gap-1.5">
+                  Open download page <ExternalLink className="size-3.5" aria-hidden="true" />
+                </span>
+              </SmallButton>
+            )}
+            {status.skippedVersion !== offer.version && (
+              <SmallButton onClick={() => void act(() => skipUpdateVersion(offer.version))}>Skip this version</SmallButton>
+            )}
+          </div>
+          {action === "openPage" && <p className="text-xs break-words text-dim">{status.mode === "portable" ? PORTABLE_HINT : MANUAL_HINT}</p>}
+        </div>
+      )}
+      {error && (
+        <p role="alert" className="px-4 py-3 text-sm break-words text-danger">
+          {error}
+        </p>
+      )}
+      {confirming && offer && (
+        <ConfirmDialog
+          id="install-update"
+          heading={INSTALL_HEADING}
+          confirmLabel="Install now"
+          onCancel={() => setConfirming(false)}
+          onConfirm={async () => {
+            try {
+              await installUpdate(); // the app closes
+              return { ok: true };
+            } catch (e) {
+              return { ok: false, message: e instanceof Error ? e.message : String(e) };
+            }
+          }}
+        >
+          <p>{installConfirmText(offer.version)}</p>
+        </ConfirmDialog>
+      )}
     </SettingsSection>
   );
 }
@@ -806,10 +921,10 @@ function NoticesDialog({ text, onClose }: { text: string; onClose: () => void })
 
 /* ---------- local building blocks ---------- */
 
-function SettingsSection({ index, title, children }: { index: string; title: string; children: ReactNode }) {
+function SettingsSection({ index, title, id, children }: { index: string; title: string; id?: string; children: ReactNode }) {
   const headingId = useId();
   return (
-    <section aria-labelledby={headingId} className="rounded-sm border border-line bg-surface">
+    <section id={id} aria-labelledby={headingId} className="rounded-sm border border-line bg-surface">
       <div className="flex items-center gap-3 border-b border-line px-4 py-3">
         <span className="font-mono text-xs text-accent">{index}</span>
         <h2 id={headingId} className="text-sm font-semibold tracking-wide text-fg">
@@ -865,19 +980,4 @@ function Switch({
       />
     </button>
   );
-}
-
-/** Reads the real application version from Tauri; stays empty in a plain browser. */
-function useAppVersion() {
-  const [version, setVersion] = useState<string | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    getVersion()
-      .then((v) => !cancelled && setVersion(v))
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-  return version;
 }

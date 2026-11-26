@@ -44,6 +44,27 @@ registry entries) and nothing else. A portable copy is never touched by the unin
 
 Settings → About shows the version and which one you're running (`Installed` or `Portable`).
 
+## Updates
+
+- **What is checked:** the list of releases on this repository's GitHub Releases page. A beta build is offered
+  newer betas and stable releases; a stable build only newer stable releases.
+- **How often:** about 10 seconds after Cargo Line starts, at most once every 24 hours, plus whenever you click
+  **Check now** in Settings → Updates. A failed automatic check is silent; it never slows the start.
+- **Turning it off:** Settings → Updates → **Check for updates automatically**. Check now still works.
+- **When there is a new version:** a quiet **Update available** line appears in the top bar (never a pop-up).
+  **Skip this version** hides it until an even newer version comes out.
+  - **Installed version:** **Download and install** downloads the installer and `SHA256SUMS.txt`, checks the
+    installer's size and SHA-256, then asks before it closes Cargo Line, installs over the existing copy (no admin
+    prompt, your shortcuts stay as they are) and opens it again. Your data folder isn't touched.
+  - **Portable version** (and development builds): **Open download page**. Download the new zip and copy your
+    `data` folder into it.
+- **What the check protects against:** a damaged or incomplete download (the file is deleted and nothing is
+  installed). It doesn't protect against a compromised GitHub account; code signing would cover that later.
+
+**Network:** the update check is the only network access Cargo Line makes. It contacts GitHub only
+(`api.github.com`, `github.com` release downloads and GitHub's download servers), sends nothing but standard
+request headers (`User-Agent: Cargo-Line/<version>`, no account, no token, no data of yours), and can be turned off.
+
 ## Current status
 
 **Beta.** What the app does:
@@ -56,7 +77,7 @@ Settings → About shows the version and which one you're running (`Installed` o
 | Cargo | Pickup and destination summary, isometric box view. |
 | History | Runs, earnings, aUEC per hour. Restore or clear. |
 | Settings | Capture, Game.log, data folder, backup and restore, About. |
-| Updates | Not yet: download new versions from the Releases page. |
+| Updates | Checks GitHub for a newer version. The installed version updates itself in one click. |
 
 See [`CHANGELOG.md`](CHANGELOG.md) for each version's changes.
 

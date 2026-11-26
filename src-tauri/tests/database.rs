@@ -711,7 +711,12 @@ fn settings_defaults_are_safe() {
     assert!(!s.auto_capture_on_accept);
     assert!(!s.complete_from_game);
     assert_eq!(s.complete_from_game_mode, CompleteFromGameMode::Ask);
-    assert!(!s.automatic_update_checks);
+    assert!(
+        s.check_updates_automatically,
+        "update checks are on by default (Task 20)"
+    );
+    assert_eq!(s.update_last_check_ms, None);
+    assert_eq!(s.update_skipped_version, None);
     assert_eq!(s.game_log_path, None);
     assert_eq!(s.selected_ship_id, None);
     assert_eq!(s.capture_source, CaptureSource::StarCitizenWindow);
@@ -733,7 +738,10 @@ fn settings_persist_across_restarts_and_restore_defaults() {
         complete_from_game: true,
         complete_from_game_mode: CompleteFromGameMode::Automatic,
         selected_ship_id: Some("drak-caterpillar".into()),
-        automatic_update_checks: true,
+        check_updates_automatically: false,
+        update_last_check_ms: Some(1_700_000_000_000),
+        update_skipped_version: Some("1.0.0-beta.3".into()),
+        update_installing_version: None,
         contract_grouping: ContractGrouping::ByContract,
     };
     {

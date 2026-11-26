@@ -4,6 +4,16 @@ All notable changes to Cargo Line are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.0.0-beta.2] - Unreleased
+
+### Added
+
+- **Updates:** update check, and one-click updates for the installed version. Cargo Line looks for
+  a newer version on GitHub shortly after it starts (at most once a day; you can turn it off in
+  Settings → Updates) and shows a quiet "Update available" line in the top bar. The installed
+  version downloads the installer, checks it, closes, installs and opens again; the portable
+  version links to the download page.
+
 ## [1.0.0-beta.1] - 2026-11-27
 
 The first public beta. Windows 10/11 (x64), offline, no account. The app isn't code-signed yet,

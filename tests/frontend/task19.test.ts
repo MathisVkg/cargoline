@@ -104,7 +104,7 @@ test("changelog extraction fails on a missing or empty section", () => {
 test("the real CHANGELOG has a section for the current version", () => {
   const version = readVersions(repo).packageJson;
   const section = extractSection(read("CHANGELOG.md"), version);
-  assert.match(section, /Contracts/);
+  assert.match(section, /^### (Added|Changed|Fixed|Removed)/m, "a Keep a Changelog subsection");
   assert.doesNotMatch(section, /Task \d+/i, "no internal task numbers");
 });
 

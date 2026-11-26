@@ -65,8 +65,16 @@ pub struct AppSettings {
     pub complete_from_game_mode: CompleteFromGameMode,
     /// Informational ship selection (catalog id). Never linked to contracts or runs.
     pub selected_ship_id: Option<String>,
-    /// Opt-in automatic update checks. Off by default.
-    pub automatic_update_checks: bool,
+    /// Check GitHub for a newer version about 10 s after start, at most once a day (Task 20).
+    /// On by default. (Replaces the unused opt-in `automatic_update_checks` key of earlier
+    /// builds, which is ignored if stored.)
+    pub check_updates_automatically: bool,
+    /// When the last update check ran (UTC ms), automatic or manual.
+    pub update_last_check_ms: Option<i64>,
+    /// "Skip this version": the top-bar marker stays hidden for this exact version.
+    pub update_skipped_version: Option<String>,
+    /// Set just before the installer runs; the next start turns it into "Updated to version X".
+    pub update_installing_version: Option<String>,
     pub contract_grouping: ContractGrouping,
 }
 
@@ -83,7 +91,10 @@ impl Default for AppSettings {
             complete_from_game: false,
             complete_from_game_mode: CompleteFromGameMode::Ask,
             selected_ship_id: None,
-            automatic_update_checks: false,
+            check_updates_automatically: true,
+            update_last_check_ms: None,
+            update_skipped_version: None,
+            update_installing_version: None,
             contract_grouping: ContractGrouping::ByLocation,
         }
     }
@@ -199,6 +210,20 @@ impl AppSettings {
             MAX_SHIP_ID_CHARS,
         )?;
 
+        for (field, value) in [
+            ("update_skipped_version", &self.update_skipped_version),
+            ("update_installing_version", &self.update_installing_version),
+        ] {
+            if value
+                .as_deref()
+                .is_some_and(|v| semver::Version::parse(v).is_err())
+            {
+                return Err(invalid(field, "must be a semver version"));
+            }
+        }
+        if self.update_last_check_ms.is_some_and(|t| t < 0) {
+            return Err(invalid("update_last_check_ms", "must not be negative"));
+        }
         if self.capture_delay_ms > CAPTURE_DELAY_MAX_MS {
             return Err(invalid("capture_delay_ms", "must be between 0 and 5000 ms"));
         }

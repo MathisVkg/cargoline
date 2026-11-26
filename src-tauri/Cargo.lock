@@ -259,12 +259,13 @@ dependencies = [
 
 [[package]]
 name = "cargo-line"
-version = "1.0.0-beta.1"
+version = "1.0.0-beta.2"
 dependencies = [
  "chrono",
  "png",
  "rusqlite",
  "rusqlite_migration",
+ "semver",
  "serde",
  "serde_json",
  "tauri",

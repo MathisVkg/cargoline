@@ -12,7 +12,6 @@ export const SETTINGS_GROUPS = [
 export const SETTINGS_DESCRIPTION =
   "Settings are saved on this computer. Back up or restore your data in the Data group.";
 
-export const UPDATES_HINT = "Update checking arrives in a later version.";
 
 /* ------------------------------------------------------------------ Data */
 
@@ -116,7 +115,7 @@ export function catalogCreditLine(c: CatalogCredit): string {
 }
 
 /** Link keys the backend accepts (it holds the URLs). */
-export type LinkKey = "repository" | "license" | "wikiApi";
+export type LinkKey = "repository" | "license" | "wikiApi" | "release";
 
 /** Splits the notices Markdown into display blocks: headings, table rows, paragraphs, rules. */
 export type NoticeBlock = { kind: "heading"; level: number; text: string } | { kind: "rule" } | { kind: "text"; text: string };

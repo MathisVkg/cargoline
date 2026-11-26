@@ -17,7 +17,6 @@ import {
   SETTINGS_DESCRIPTION,
   SETTINGS_GROUPS,
   UNOFFICIAL,
-  UPDATES_HINT,
   backupContents,
   backupFileName,
   catalogCreditLine,
@@ -36,12 +35,10 @@ test("Settings groups and description", () => {
     ["01 Game", "02 OCR Capture", "03 Updates", "04 Data", "05 About"],
   );
   assert.ok(!/placeholder/i.test(SETTINGS_DESCRIPTION), "no longer says settings are placeholders");
-  assert.equal(UPDATES_HINT, "Update checking arrives in a later version.");
-  // The page source uses the same order and the disabled Check now button with the hint.
+  // The page source uses the same order. (Updates replaced its disabled placeholder in Task 20.)
   const page = readFileSync(join(repo, "src", "pages", "SettingsPage.tsx"), "utf8");
   const order = ["<GameSection", "<OcrSection", "<UpdatesSection", "<DataSection", "<AboutSection"].map((t) => page.indexOf(t));
   assert.ok(order.every((i, k) => i > 0 && (k === 0 || i > order[k - 1])), `section order ${order}`);
-  assert.match(page, /<DisabledButton icon=\{RefreshCw\} note=\{UPDATES_HINT\}>\s*Check now/);
   assert.ok(!page.includes("<Tag>Pending</Tag>"), "no placeholder leftovers");
 });
 

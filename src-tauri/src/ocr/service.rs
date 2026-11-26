@@ -82,6 +82,11 @@ impl OcrState {
         }
     }
 
+    /// Whether any recognition is running (an update waits for it, Task 20).
+    pub fn is_busy(&self) -> bool {
+        self.running.lock().map(|r| !r.is_empty()).unwrap_or(true)
+    }
+
     /// Cancels the running recognition of `capture_id`; returns whether one was running.
     pub fn cancel(&self, capture_id: i64) -> bool {
         self.running

@@ -37,6 +37,14 @@ hand. Nothing is published automatically, and an existing release is never overw
    pre-release flag. A version with a suffix such as `-beta.1` is marked as a pre-release automatically. Then
    click **Publish release**.
 
+## Don't rename anything
+
+The in-app update (Task 20) finds the files by exact name: `Cargo-Line_<version>_x64-setup.exe` and
+`SHA256SUMS.txt`, on a tag `v<version>`. It also installs over the existing copy through the Uninstall entry
+`Cargo Line` and the folder `%LOCALAPPDATA%\Cargo Line`, both named after `productName`. **Never rename
+`productName`, the asset names or the tag format**: installed copies would stop finding updates, or install a
+second copy next to the first. A release without both files is shown as a notice with a link, never installed.
+
 ## If something goes wrong
 
 - **The tag doesn't match:** delete the tag (`git push origin :refs/tags/v<version>`), fix the version,
@@ -49,5 +57,5 @@ hand. Nothing is published automatically, and an existing release is never overw
 ## Not done yet
 
 - The installer and the exe aren't code-signed, so SmartScreen warns (see the README).
-- There is no update check yet. The app already knows whether it is the installed or the portable copy
-  (`mode` in `get_about_info`), for when there is one.
+- `1.0.0-beta.1` has no update check: its users update by hand once. The first in-app update is
+  `1.0.0-beta.2` → `1.0.0-beta.3`.

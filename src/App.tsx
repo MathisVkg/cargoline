@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useReducer, useRef, useState } from "react";
 import { TopBar } from "./components/TopBar";
+import { UPDATES_SECTION_ID } from "./features/update/model";
 import { BottomNav } from "./components/BottomNav";
 import { ContractsPage } from "./pages/ContractsPage";
 import { CargoPage, HistoryPage, PREFETCH_DELAY_MS, SettingsPage, prefetchLazyChunks } from "./lazyPages";
@@ -78,9 +79,21 @@ export default function App() {
     mainRef.current?.scrollTo({ top: 0 });
   };
 
+  // The top-bar update marker: Settings, scrolled to the Updates group (the page may still load).
+  const openUpdates = () => {
+    navigate("settings");
+    let tries = 0;
+    const scroll = () => {
+      const target = document.getElementById(UPDATES_SECTION_ID);
+      if (target) target.scrollIntoView({ block: "start" });
+      else if (++tries < 20) window.setTimeout(scroll, 50);
+    };
+    window.setTimeout(scroll, 0);
+  };
+
   return (
     <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_auto] bg-canvas">
-      <TopBar />
+      <TopBar onOpenUpdates={openUpdates} />
       <main
         ref={mainRef}
         id="main-content"
