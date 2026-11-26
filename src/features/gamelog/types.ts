@@ -3,6 +3,8 @@ export interface FirstObjective {
   scu: number;
   commodity: string;
   location: string;
+  /** The log names a star system (interstellar: "… to Pyro System"), not the destination. */
+  locationIsSystem?: boolean;
 }
 
 /** Tauri event `gamelog://event` (never raw lines). */

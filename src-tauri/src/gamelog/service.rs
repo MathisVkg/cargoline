@@ -128,11 +128,32 @@ pub fn ended_before_accept(at: Option<&str>, accepted_at_ms: i64) -> bool {
     at.and_then(log_time_ms).is_some_and(|t| t < accepted_at_ms)
 }
 
+/// "Pyro System", "Stanton system", or a bare system name of the bundled list ("Pyro").
+pub fn is_system_name(location: &str) -> bool {
+    let name = location.trim();
+    let lower = name.to_lowercase();
+    if lower.ends_with(" system") && name.len() > " system".len() {
+        return true;
+    }
+    crate::reference::locations().is_ok_and(|list| {
+        list.items
+            .iter()
+            .filter_map(|l| l.system.as_deref())
+            .any(|s| s.eq_ignore_ascii_case(name))
+    })
+}
+
 fn resolve_objective(raw: RawObjective, refs: &References) -> FirstObjective {
+    let location_is_system = is_system_name(&raw.location);
     FirstObjective {
         scu: raw.scu,
         commodity: refs.commodities.resolve(&raw.commodity, false).0,
-        location: refs.locations.resolve(&raw.location, true).0,
+        location: if location_is_system {
+            raw.location.trim().to_string()
+        } else {
+            refs.locations.resolve(&raw.location, true).0
+        },
+        location_is_system,
     }
 }
 

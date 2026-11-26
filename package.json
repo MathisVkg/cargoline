@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "description": "Offline-first Star Citizen hauling contract manager (unofficial).",
+  "license": "GPL-3.0-only",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

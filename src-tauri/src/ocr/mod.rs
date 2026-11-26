@@ -6,8 +6,9 @@
 //!
 //! Pipeline (configuration chosen by the Task 08 accuracy gate, `tessdata_fast`):
 //! 1. Load the PNG.
-//! 2. Anchor pass on a 50 % copy, `--psm 11` (sparse text): `PRIMARY OBJECTIVES`, `Reward`,
-//!    `ABANDON` / `ACCEPT OFFER`.
+//! 2. Anchor pass, `--psm 11` (sparse text): `PRIMARY OBJECTIVES`, `Reward`, the reward card label.
+//!    On a 50 % copy from 1440 px of height (4K: about 1900 × 1080); full size below (Task 16: a
+//!    halved 1080p frame is 960 × 540, too small to read the reward card).
 //! 3. Regions from the anchors (fixed fractions when an anchor is missing).
 //! 4. Title and reward raw, objectives grayscale ×2, all `--psm 6`, in parallel.
 
@@ -26,6 +27,9 @@ use engine::{CancelToken, Engine};
 use image::Image;
 use layout::{find_anchors, looks_like_objectives, plan_regions, screen_state, PlannedRegion};
 use tsv::{parse_tsv, Mapping};
+
+/// Frames at least this tall get the anchor pass on a half-size copy; smaller ones at full size.
+pub const HALF_ANCHOR_MIN_HEIGHT: u32 = 1440;
 
 /// Page segmentation modes (see `tesseract --help-psm`).
 const PSM_SPARSE: u8 = 11;
@@ -214,16 +218,23 @@ pub fn recognize_image(
     load_ms: u64,
     started: Instant,
 ) -> Result<OcrResult, OcrError> {
-    // 2. Anchor pass on a half-size copy (boxes mapped back to full size).
+    // 2. Anchor pass on a half-size copy (boxes mapped back to full size), or at full size
+    //    for frames under HALF_ANCHOR_MIN_HEIGHT.
     let anchor_started = Instant::now();
-    let small = frame.half();
-    let anchor_tsv = engine.recognize_tsv(&small, PSM_SPARSE, cancel)?;
+    let (anchor_tsv, anchor_scale) = if frame.height >= HALF_ANCHOR_MIN_HEIGHT {
+        (
+            engine.recognize_tsv(&frame.half(), PSM_SPARSE, cancel)?,
+            0.5,
+        )
+    } else {
+        (engine.recognize_tsv(frame, PSM_SPARSE, cancel)?, 1.0)
+    };
     let anchor_lines = parse_tsv(
         &anchor_tsv,
         Mapping {
             offset_x: 0.0,
             offset_y: 0.0,
-            scale: 0.5,
+            scale: anchor_scale,
         },
     );
     let anchors = find_anchors(&anchor_lines);

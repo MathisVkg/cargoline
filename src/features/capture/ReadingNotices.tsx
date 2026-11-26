@@ -1,16 +1,31 @@
 import { AlertTriangle, Copy, ScanText } from "lucide-react";
 import type { ReactNode } from "react";
-import { duplicateHint, screenBanner } from "./prefill";
+import { duplicateHint, narrowWindowBanner, screenBanner } from "./prefill";
 import type { ContractDetail } from "../contracts/types";
 import type { ParsedContract } from "./types";
 
 /** Non-blocking notes at the top of the form about the reading that filled it. */
-export function ReadingBanners({ applied, duplicate }: { applied: ParsedContract | null; duplicate: ContractDetail | null }) {
+export function ReadingBanners({
+  applied,
+  duplicate,
+  frame = null,
+}: {
+  applied: ParsedContract | null;
+  duplicate: ContractDetail | null;
+  /** The captured frame's size: a frame narrower than 16:10 gets the narrow-window warning. */
+  frame?: { width: number | null; height: number | null } | null;
+}) {
   const screen = applied ? screenBanner(applied) : null;
+  const narrow = narrowWindowBanner(frame);
   const problems = applied?.problems ?? [];
-  if (!screen && problems.length === 0 && !duplicate) return null;
+  if (!screen && !narrow && problems.length === 0 && !duplicate) return null;
   return (
     <div className="mb-3 flex flex-col gap-2">
+      {narrow && (
+        <Note icon={AlertTriangle} tone="warning" role="status">
+          {narrow}
+        </Note>
+      )}
       {screen && (
         <Note icon={AlertTriangle} tone="warning" role="status">
           {screen}

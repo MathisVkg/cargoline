@@ -7,7 +7,12 @@
 //! <ts> [Notice] <CLocalMissionPhaseMarker::CreateMarker> Creating objective marker: missionId [<uuid>], generator name [Covalex_Hauling], contract [HaulCargo_AToB_…], …
 //! <ts> [Notice] <SHUDEvent_OnNotification> Added notification "New Objective: Deliver 0/84 SCU of Aluminum to Baijini Point: " [12] … MissionId: [<uuid>], …
 //! <ts> [Notice] <MissionEnded> Received MissionEnded push message for: mission_id <uuid> - mission_state MISSION_STATE_COMPLETED …
+//! <ts> [Notice] <EndMission> Ending mission for player. MissionId[<uuid>] Player[<name>] PlayerId[<n>] CompletionType[Abandon] Reason[Player left] …
 //! ```
+//! `EndMission` (Task 16) is the only end line for an abandon (no `MissionEnded`). For a completion
+//! it follows `MissionEnded` on the next line (`CompletionType[Complete]`); the tracker keeps the
+//! first end per MissionId, so a mission acts once. Only the MissionId, the completion type and the
+//! timestamp are read: the player name and id on that line are never kept or logged.
 //! The accepted notification is echoed on lines without a MissionId: only the line carrying
 //! one counts.
 
@@ -15,6 +20,17 @@
 /// contains `HaulCargo` (generator `Covalex_Hauling`); salvage uses `Adaigo` and is ignored.
 pub const HAULING_TEMPLATE_PREFIXES: &[&str] = &["HaulCargo"];
 pub const STATE_COMPLETED: &str = "MISSION_STATE_COMPLETED";
+pub const STATE_ABANDONED: &str = "MISSION_STATE_ABANDONED";
+
+/// `EndMission` completion type → the end state used by the app. `Complete` and `Abandon` map to
+/// the `MissionEnded` names; any other type is passed through by name (an unknown state).
+pub fn completion_state(completion_type: &str) -> String {
+    match completion_type {
+        "Complete" => STATE_COMPLETED.to_string(),
+        "Abandon" => STATE_ABANDONED.to_string(),
+        other => other.to_string(),
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LogLine {
@@ -97,6 +113,19 @@ pub fn parse_line(line: &str) -> Option<LogLine> {
         let mission_id = bracketed_id(line, "MissionId:")?;
         let text = notification(line, "New Objective:")?;
         return Some(LogLine::Objective { mission_id, text });
+    }
+    if line.contains("<EndMission>") {
+        let mission_id = bracketed_id(line, "MissionId")?;
+        let start = line.find("CompletionType[")? + "CompletionType[".len();
+        let kind = &line[start..start + line[start..].find(']')?];
+        if kind.is_empty() || !kind.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+            return None;
+        }
+        return Some(LogLine::Ended {
+            mission_id,
+            state: completion_state(kind),
+            at: timestamp(line),
+        });
     }
     if line.contains("<MissionEnded>") {
         let start = line.find("mission_id ")? + "mission_id ".len();

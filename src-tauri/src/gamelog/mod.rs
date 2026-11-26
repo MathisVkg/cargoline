@@ -21,6 +21,9 @@ pub struct FirstObjective {
     pub scu: u32,
     pub commodity: String,
     pub location: String,
+    /// The log names a star system, not the destination (interstellar contracts: "… to Pyro
+    /// System"). The location is then not compared with the form (Task 16).
+    pub location_is_system: bool,
 }
 
 /// Sent to the frontend as the `gamelog://event` Tauri event. Only the MissionId, title, first

@@ -3,6 +3,9 @@
 //! scorers (`.agent-local/spikes/score.mjs`, `score-locations.mjs`).
 //!
 //! Skipped, with a message, when the fixtures, the bundle or Node.js are missing.
+//!
+//! The 1080p set (Task 16, `.agent-local/fixtures-1080p/`) is checked directly (anchors, screen
+//! state, title text, timing); its field-by-field check is in `parser_fixtures`.
 //! Timing is only meaningful in release: `cargo test --release --test ocr_fixtures -- --nocapture`.
 
 use std::path::{Path, PathBuf};
@@ -169,6 +172,84 @@ fn bundled_tesseract_meets_the_task_08_pass_bar_on_the_fixtures() {
         eprintln!("slowest capture {slowest} ms (debug build: not checked)");
     } else {
         assert!(slowest <= 3_000, "slowest capture took {slowest} ms");
+    }
+}
+
+/// The 1080p fixture set (Task 16): anchors, screen state and title on every screenshot.
+#[test]
+fn bundled_tesseract_reads_the_1080p_fixtures() {
+    let dir = repo().join(".agent-local/fixtures-1080p");
+    let bundle = Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/tesseract");
+    if !dir.join("ground-truth.json").is_file() {
+        return skip("1080p fixtures not found in .agent-local/fixtures-1080p/");
+    }
+    if !bundle.join("tesseract.exe").is_file() {
+        return skip("bundle missing (run scripts/prepare-tesseract.ps1)");
+    }
+    let truth: Value =
+        serde_json::from_str(&std::fs::read_to_string(dir.join("ground-truth.json")).unwrap())
+            .unwrap();
+    let tmp = tempfile::tempdir().unwrap();
+    let engine = Engine::in_dir(&bundle, tmp.path().join("ocr-tmp"), Duration::from_secs(30));
+    let mut files: Vec<PathBuf> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| p.extension().is_some_and(|e| e == "png"))
+        .collect();
+    files.sort();
+    assert!(!files.is_empty(), "no 1080p screenshots");
+    let mut slowest = 0;
+    for png in &files {
+        let name = png.file_name().unwrap().to_str().unwrap();
+        let gt = &truth[name];
+        let result = recognize_file(&engine, png, &CancelToken::default()).unwrap();
+        let t = result.timings;
+        slowest = slowest.max(t.total_ms);
+        eprintln!(
+            "{name}: {}×{}, anchors {:?}, screen {:?}, load {} + anchor {} + regions {} = {} ms",
+            result.width,
+            result.height,
+            result.anchors,
+            result.screen,
+            t.load_ms,
+            t.anchor_ms,
+            t.regions_ms,
+            t.total_ms
+        );
+        for region in &result.regions {
+            for line in &region.lines {
+                eprintln!("  {:?} {:>3.0} {}", region.kind, line.confidence, line.text);
+            }
+        }
+        assert!(
+            result.anchors.header && result.anchors.reward,
+            "{name}: anchors"
+        );
+        let expected = if gt["tab"] == "accepted" {
+            ScreenState::Accepted
+        } else {
+            ScreenState::Offer
+        };
+        assert_eq!(result.screen, expected, "{name}: screen state");
+        let title: String = result
+            .regions
+            .iter()
+            .find(|r| r.kind == RegionKind::Title)
+            .unwrap()
+            .lines
+            .iter()
+            .map(|l| l.text.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(
+            title.contains(gt["title"].as_str().unwrap()),
+            "{name}: title read as {title:?}"
+        );
+    }
+    if cfg!(debug_assertions) {
+        eprintln!("slowest 1080p capture {slowest} ms (debug build: not checked)");
+    } else {
+        assert!(slowest <= 3_000, "slowest 1080p capture took {slowest} ms");
     }
 }
 

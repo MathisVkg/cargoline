@@ -308,7 +308,7 @@ export function AddContractModal({
             </p>
           )}
           {!editing && <QueueBar queue={queue} onCaptureNow={onCaptureNow} />}
-          {!editing && <ReadingBanners applied={applied} duplicate={duplicate} />}
+          {!editing && <ReadingBanners applied={applied} duplicate={duplicate} frame={captureFlow.model.capture} />}
           <ContractForm
             draft={draft}
             onChange={change}

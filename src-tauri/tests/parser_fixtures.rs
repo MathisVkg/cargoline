@@ -1,9 +1,14 @@
-//! Local fixture regression (fixtures stay in .agent-local/, not in the repository): capture PNG → OCR (bundled tesseract.exe) → parser,
-//! on the 7 Task 06 screenshots, against `.agent-local/spikes/ground-truth.json`.
-//! Skipped with a message when the fixtures or the bundle are missing.
+//! Local fixture regression (fixtures stay in .agent-local/, not in the repository): capture PNG →
+//! OCR (bundled tesseract.exe) → parser, for every fixture set (Task 16):
+//! - `4k`: the 7 Task 06 screenshots in `.agent-local/screenshot/`, truth
+//!   `.agent-local/spikes/ground-truth.json`;
+//! - `1080p`: `.agent-local/fixtures-1080p/*.png`, truth `.agent-local/fixtures-1080p/ground-truth.json`.
 //!
-//! Pass bar (Task 09): structure, SCU, commodities and locations correct on all 7; title 7/7;
-//! reward correct on the 3 Accepted screenshots; zero wrong values filled without a flag.
+//! Each set is skipped with a message when its files (or the bundle) are missing.
+//!
+//! Pass bar per set (Task 09): structure, SCU, commodities and locations correct on every
+//! screenshot; every title; screen state; max box size; reward correct on every Accepted
+//! screenshot (Offers: correct or flagged); zero wrong values filled without a flag.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -16,6 +21,28 @@ use serde_json::Value;
 
 fn repo() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("..")
+}
+
+/// A fixture set: screenshots and their hand-written ground truth (keyed by file name).
+struct FixtureSet {
+    name: &'static str,
+    shots: PathBuf,
+    truth: PathBuf,
+}
+
+fn fixture_sets() -> Vec<FixtureSet> {
+    vec![
+        FixtureSet {
+            name: "4k",
+            shots: repo().join(".agent-local/screenshot"),
+            truth: repo().join(".agent-local/spikes/ground-truth.json"),
+        },
+        FixtureSet {
+            name: "1080p",
+            shots: repo().join(".agent-local/fixtures-1080p"),
+            truth: repo().join(".agent-local/fixtures-1080p/ground-truth.json"),
+        },
+    ]
 }
 
 #[derive(Default)]
@@ -63,28 +90,46 @@ impl Tally {
 
 #[test]
 fn full_pipeline_meets_the_task_09_pass_bar() {
-    let shots = repo().join(".agent-local/screenshot");
-    let truth_file = repo().join(".agent-local/spikes/ground-truth.json");
     let bundle = Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/tesseract");
-    if !shots.is_dir() || !truth_file.is_file() || !bundle.join("tesseract.exe").is_file() {
-        eprintln!("SKIPPED parser_fixtures: fixtures or OCR bundle missing");
+    if !bundle.join("tesseract.exe").is_file() {
+        eprintln!(
+            "SKIPPED parser_fixtures: OCR bundle missing (run scripts/prepare-tesseract.ps1)"
+        );
         return;
     }
-    let truth: Value = serde_json::from_str(&std::fs::read_to_string(truth_file).unwrap()).unwrap();
+    for set in fixture_sets() {
+        if !set.shots.is_dir() || !set.truth.is_file() {
+            eprintln!("SKIPPED parser_fixtures [{}]: fixtures not found", set.name);
+            continue;
+        }
+        check_set(&set, &bundle);
+    }
+}
+
+fn check_set(set: &FixtureSet, bundle: &Path) {
+    let shots = &set.shots;
+    eprintln!(
+        "
+=== fixture set {} ===",
+        set.name
+    );
+    let truth: Value = serde_json::from_str(&std::fs::read_to_string(&set.truth).unwrap()).unwrap();
     let refs = References::build(&[], &[]);
     let tmp = tempfile::tempdir().unwrap();
-    let engine = Engine::in_dir(&bundle, tmp.path().to_path_buf(), Duration::from_secs(30));
+    let engine = Engine::in_dir(bundle, tmp.path().to_path_buf(), Duration::from_secs(30));
 
     let mut tally = Tally::default();
     let mut resolutions = [0usize; 5]; // exact, stripped, lagrange, folded, unresolved
     let (mut titles, mut accepted_rewards, mut structures, mut screens, mut boxes) =
         (0, 0, 0, 0, 0);
-    let mut files: Vec<PathBuf> = std::fs::read_dir(&shots)
+    let mut files: Vec<PathBuf> = std::fs::read_dir(shots)
         .unwrap()
         .map(|e| e.unwrap().path())
         .filter(|p| p.extension().is_some_and(|e| e == "png"))
         .collect();
     files.sort();
+    let total = files.len();
+    let mut accepted_total = 0;
     for png in &files {
         let name = png.file_name().unwrap().to_str().unwrap().to_string();
         let gt = &truth[&name];
@@ -129,6 +174,7 @@ fn full_pipeline_meets_the_task_09_pass_bar() {
         );
         let reward = gt["reward"].as_u64().unwrap();
         if gt["tab"] == "accepted" {
+            accepted_total += 1;
             accepted_rewards += usize::from(parsed.reward.value == Some(reward));
         }
         tally.field(format!("{short} reward"), &parsed.reward, Some(&reward));
@@ -187,9 +233,10 @@ fn full_pipeline_meets_the_task_09_pass_bar() {
     }
 
     eprintln!(
-        "\ntitles {titles}/7 · accepted rewards {accepted_rewards}/3 · structures {structures}/7 · screens {screens}/7 · max box {boxes}/7\n\
+        "\n[{}] titles {titles}/{total} · accepted rewards {accepted_rewards}/{accepted_total} · structures {structures}/{total} · screens {screens}/{total} · max box {boxes}/{total}\n\
          fields {}: correct {}, wrong+flagged {}, empty+flagged {}, WRONG UNFLAGGED {}\n\
          name resolution: exact {}, stripped {}, lagrange {}, folded {}, unresolved {}",
+        set.name,
         tally.checked,
         tally.correct,
         tally.wrong_flagged,
@@ -201,14 +248,25 @@ fn full_pipeline_meets_the_task_09_pass_bar() {
         resolutions[Resolution::Folded as usize],
         resolutions[Resolution::Unresolved as usize],
     );
+    let name = set.name;
+    assert!(total > 0, "[{name}] no screenshots");
     assert!(
         tally.wrong_unflagged.is_empty(),
-        "wrong values filled without a flag: {:#?}",
+        "[{name}] wrong values filled without a flag: {:#?}",
         tally.wrong_unflagged
     );
-    assert_eq!(titles, 7, "titles");
-    assert_eq!(accepted_rewards, 3, "rewards on the Accepted screenshots");
-    assert_eq!(structures, 7, "structure, SCU, commodities and locations");
-    assert_eq!(screens, 7, "screen state from the reward card");
-    assert_eq!(boxes, 7, "max box size correct or empty-and-flagged");
+    assert_eq!(titles, total, "[{name}] titles");
+    assert_eq!(
+        accepted_rewards, accepted_total,
+        "[{name}] rewards on the Accepted screenshots"
+    );
+    assert_eq!(
+        structures, total,
+        "[{name}] structure, SCU, commodities and locations"
+    );
+    assert_eq!(screens, total, "[{name}] screen state from the reward card");
+    assert_eq!(
+        boxes, total,
+        "[{name}] max box size correct or empty-and-flagged"
+    );
 }

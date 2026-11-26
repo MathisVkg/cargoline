@@ -172,6 +172,21 @@ export function screenBanner(parsed: Pick<ParsedContract, "screen" | "problems" 
   }
 }
 
+/**
+ * Narrow windows (Task 16): 4:3 and similar are not supported. The game cuts the contract panel
+ * differently there, so a frame narrower than 16:10 only gets this non-blocking warning; there are
+ * no special parsing rules for cut-off text.
+ */
+export const NARROW_WINDOW_BANNER =
+  "Your game window is narrower than 16:9; part of the contract screen may be cut off. Check every field.";
+/** 16:10 = 1.6. 16:10, 16:9 and wider pass; 3:2, 4:3 and 5:4 get the banner. */
+export const NARROW_ASPECT_LIMIT = 16 / 10;
+
+export function narrowWindowBanner(frame: { width: number | null; height: number | null } | null): string | null {
+  if (!frame || !frame.width || !frame.height || frame.width <= 0 || frame.height <= 0) return null;
+  return frame.width / frame.height < NARROW_ASPECT_LIMIT - 1e-9 ? NARROW_WINDOW_BANNER : null;
+}
+
 /** The hint on fields that disagree with the Game.log first objective (Task 10). */
 export const GAME_LOG_MISMATCH = "Differs from game log — check";
 
@@ -183,7 +198,7 @@ const sameName = (a: string, b: string) => a.trim().replace(/\s+/g, " ").toLower
  */
 export function crossCheckFlags(
   draft: ContractDraft,
-  objective: { scu: number; commodity: string; location: string } | null,
+  objective: { scu: number; commodity: string; location: string; locationIsSystem?: boolean } | null,
 ): Map<string, string> {
   const flags = new Map<string, string>();
   const first = draft.requirements[0];
@@ -195,8 +210,10 @@ export function crossCheckFlags(
   if (first.quantityScu.trim() && (!total.ok || total.value !== objective.scu * 1000)) {
     flags.set(flagKeys.total(first.key), GAME_LOG_MISMATCH);
   }
+  // Interstellar contracts: the log names the system ("Pyro System"), not the destination.
+  // SCU and commodity are still compared; the location is not (Task 16).
   const delivery = first.deliveries[0];
-  if (delivery && delivery.locationName.trim() && !sameName(delivery.locationName, objective.location)) {
+  if (delivery && !objective.locationIsSystem && delivery.locationName.trim() && !sameName(delivery.locationName, objective.location)) {
     flags.set(flagKeys.location(delivery.key), GAME_LOG_MISMATCH);
   }
   return flags;
