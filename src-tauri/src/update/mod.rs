@@ -1,4 +1,4 @@
-//! Update check and in-app update for the installed version (Task 20).
+//! Update check and in-app update for the installed version.
 //!
 //! - **Check:** `GET` the GitHub releases list ([`net::API_URL`]), pick the highest newer release
 //!   ([`feed::select_offer`]). Automatically about 10 s after the first screen, at most once every
@@ -30,7 +30,7 @@ use feed::Offer;
 /// Event sent to the frontend whenever the update status changes.
 pub const STATUS_EVENT: &str = "update-status";
 pub const AUTO_CHECK_INTERVAL_MS: i64 = 24 * 60 * 60 * 1000;
-/// After the first screen (Task 18 order).
+/// After the first screen (the startup order).
 pub const AUTO_CHECK_DELAY: Duration = Duration::from_secs(10);
 pub const MAX_INSTALLER_BYTES: u64 = 100 * 1024 * 1024;
 const MAX_SUMS_BYTES: u64 = 64 * 1024;

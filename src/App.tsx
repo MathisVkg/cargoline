@@ -3,7 +3,9 @@ import { TopBar } from "./components/TopBar";
 import { UPDATES_SECTION_ID } from "./features/update/model";
 import { BottomNav } from "./components/BottomNav";
 import { ContractsPage } from "./pages/ContractsPage";
-import { CargoPage, HistoryPage, PREFETCH_DELAY_MS, SettingsPage, prefetchLazyChunks } from "./lazyPages";
+import { CargoPage, HistoryPage, PREFETCH_DELAY_MS, SettingsPage, WelcomeGuide, prefetchLazyChunks } from "./lazyPages";
+import { welcomeOnStartup } from "./features/welcome/model";
+import { markWelcomeSeen, SHOW_WELCOME_EVENT } from "./features/welcome/api";
 import { PageSkeleton } from "./components/PageSkeleton";
 import type { PageId } from "./navigation";
 import { getSettings } from "./features/capture/api";
@@ -22,7 +24,7 @@ import { traceMark, traceOnce } from "./features/perf/trace";
 export default function App() {
   const [page, setPage] = useState<PageId>("contracts");
   const mainRef = useRef<HTMLElement>(null);
-  // Game.log events and the Add Contract modal (Task 10); works from any page.
+  // Game.log events and the Add Contract modal; works from any page.
   const [flow, dispatch] = useReducer(reduceFlow, initialFlow);
   const [shortcut, setShortcut] = useState<string | null>(null);
 
@@ -34,9 +36,20 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
+    let first = true;
     const load = () =>
       getSettings()
-        .then((s) => !cancelled && setShortcut(s.capture_shortcut))
+        .then((s) => {
+          if (cancelled) return;
+          setShortcut(s.capture_shortcut);
+          // The welcome guide, once per data folder, from the same startup settings call. Marked
+          // as seen when it opens, so any way of closing it counts (even the window's X).
+          if (first && welcomeOnStartup(s)) {
+            dispatch({ type: "welcome" });
+            markWelcomeSeen().catch(() => undefined);
+          }
+          first = false;
+        })
         .catch(() => undefined);
     void load();
     window.addEventListener(SETTINGS_CHANGED, load);
@@ -44,6 +57,13 @@ export default function App() {
       cancelled = true;
       window.removeEventListener(SETTINGS_CHANGED, load);
     };
+  }, []);
+
+  // Settings → About → "Show the welcome guide" (the setting is not changed).
+  useEffect(() => {
+    const show = () => dispatch({ type: "welcome" });
+    window.addEventListener(SHOW_WELCOME_EVENT, show);
+    return () => window.removeEventListener(SHOW_WELCOME_EVENT, show);
   }, []);
 
   useEffect(() => {
@@ -111,6 +131,18 @@ export default function App() {
       </main>
       <BottomNav current={page} onNavigate={navigate} />
       <GameCompletions flow={flow} dispatch={dispatch} />
+      {flow.modal.open && flow.modal.kind === "welcome" && (
+        <Suspense fallback={null}>
+          <WelcomeGuide
+            key={flow.modal.session}
+            onClose={() => dispatch({ type: "closed" })}
+            onOpenSettings={() => {
+              dispatch({ type: "closed" });
+              navigate("settings");
+            }}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

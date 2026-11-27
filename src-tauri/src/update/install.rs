@@ -1,4 +1,4 @@
-//! Running the installer for an in-app update (Task 20).
+//! Running the installer for an in-app update.
 //!
 //! - In-app installing is offered only for a real installed copy: `uninstall.exe` next to the exe
 //!   **and** the Uninstall registry key's `InstallLocation` equal to the exe folder. A portable
@@ -12,7 +12,7 @@
 //!   as one `--forward=<hex>` argument (UTF-8 `NAME=VALUE` lines, hex-encoded), so a test install
 //!   never falls back to the real data folder. One token without spaces or quotes: NSIS's `/ARGS`
 //!   parsing strips the outer quotes of a quoted list, which merged separate quoted arguments
-//!   into one (seen in the Task 20 desktop session).
+//!   into one (seen in a real update test).
 
 use std::path::{Path, PathBuf};
 

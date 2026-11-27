@@ -1,4 +1,4 @@
--- Cargo Line — migration 0006: run numbers are never reused (Task 12).
+-- Cargo Line — migration 0006: run numbers are never reused.
 --
 -- Run numbers used to be MAX(run_number) + 1. Clear History deletes runs, so the next run
 -- could get a number that was already shown. run_sequence keeps the highest number ever

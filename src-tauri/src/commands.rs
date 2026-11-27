@@ -76,7 +76,7 @@ pub enum CommandError {
         reason: ReactivateFailure,
         id: Option<i64>,
     },
-    /// Backup export or restore refused (Task 17); nothing changed.
+    /// Backup export or restore refused; nothing changed.
     Backup {
         reason: BackupFailure,
         message: String,
@@ -347,7 +347,7 @@ pub async fn list_active_contracts(app: AppHandle) -> Result<Vec<ContractDetail>
         let conn = db.connection()?;
         let list = repository::list_active_contracts(&conn)?;
         drop(conn);
-        // Deferred startup work (the capture cleanup) may start now (Task 18).
+        // Deferred startup work (the capture cleanup) may start now.
         app.state::<crate::startup::FirstScreenGate>().open();
         crate::trace::mark_once("first contracts list served");
         Ok(list)
@@ -355,7 +355,7 @@ pub async fn list_active_contracts(app: AppHandle) -> Result<Vec<ContractDetail>
     .await
 }
 
-/// A startup timing mark from the frontend (Task 18).
+/// A startup timing mark from the frontend.
 #[derive(Debug, Deserialize)]
 pub struct FrontendMark {
     pub name: String,
@@ -902,7 +902,7 @@ pub fn take_startup_notice(app: AppHandle) -> Option<StartupNotice> {
 /// from the fixed allow-list.
 #[tauri::command]
 pub fn open_link(app: AppHandle, key: String) -> Result<(), CommandError> {
-    // "release": the offered release's page, checked against its allow-listed pattern (Task 20).
+    // "release": the offered release's page, checked against its allow-listed pattern.
     let release = (key == "release")
         .then(|| crate::update::release_page(&app))
         .flatten();
@@ -934,9 +934,9 @@ pub struct CatalogCredit {
 #[serde(rename_all = "camelCase")]
 pub struct AboutInfo {
     pub version: String,
-    /// `installed`, `portable` or `dev` (a debug build). Task 20: only `installed` self-updates.
+    /// `installed`, `portable` or `dev` (a debug build). Only `installed` updates itself.
     pub mode: crate::layout::AppMode,
-    /// Whether this copy installs updates itself (a real installed copy, Task 20).
+    /// Whether this copy installs updates itself (a real installed copy).
     pub in_app_update: bool,
     pub catalogs: Vec<CatalogCredit>,
     /// THIRD_PARTY_NOTICES.md, embedded at build time.
@@ -1298,7 +1298,20 @@ pub async fn update_capture_shortcut(
     .await
 }
 
-/* ---------------------------------------------------------------- updates (Task 20) */
+/// The welcome guide was shown: it doesn't open by itself again in this data folder.
+#[tauri::command]
+pub async fn mark_welcome_seen(app: AppHandle) -> Result<(), CommandError> {
+    run_blocking(move || {
+        let state = app.state::<DatabaseState>();
+        let db = state.wait_ready(READY_TIMEOUT)?;
+        let mut conn = db.connection()?;
+        settings::update(&mut conn, |s| s.welcome_seen = true)?;
+        Ok(())
+    })
+    .await
+}
+
+/* ---------------------------------------------------------------- updates */
 
 /// The update status for Settings → Updates and the top-bar marker.
 #[tauri::command]

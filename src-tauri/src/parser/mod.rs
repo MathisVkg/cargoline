@@ -213,7 +213,7 @@ fn reward_number(text: &str) -> Option<u64> {
     valid.then(|| groups.concat().parse().ok()).flatten()
 }
 
-/// Rules (Task 09, tightened by the fixture regression):
+/// Rules (tightened by the fixture regression):
 /// - the last token reading as a reward number; currency-glyph junk is ignored;
 /// - its confidence is the lower of the word's and the weakest meaningful word on its line, so damage next to the
 ///   number (the game cursor over a digit, read as `lipg`) counts. The currency glyph's own

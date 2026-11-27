@@ -1,4 +1,4 @@
-//! History (Task 12): finished contracts grouped by their run, lifetime statistics, and
+//! History: finished contracts grouped by their run, lifetime statistics, and
 //! Clear History.
 //!
 //! - Stats count **completed** contracts only; abandoned ones are listed but never counted.

@@ -1,4 +1,4 @@
-//! Parser unit tests (Task 09): OCR text samples, including the real junk seen in Tasks 06 and 08.
+//! Parser unit tests: OCR text samples, including the real junk seen in live captures.
 //! No engine, no desktop, no database.
 
 use cargo_line_lib::ocr::{
@@ -145,7 +145,7 @@ fn verbs_digits_and_bullets() {
 
 #[test]
 fn real_junk_from_tasks_06_and_08() {
-    // Task 08 live capture, line for line (bullets as `<~`, `~`, `|`, a wrapped body).
+    // A live capture, line for line (bullets as `<~`, `~`, `|`, a wrapped body).
     let parsed = objectives(&[
         "PRIMARY OBJECTIVES",
         "<~ Deliver 0/50 SCU of Aluminum to Port Tressler above |",
@@ -425,7 +425,7 @@ fn screen_is_passed_through() {
     assert_eq!(unknown.screen, ScreenState::Unknown);
 }
 
-/* ------------------------------------------------- Lagrange (Task 10 A) */
+/* ------------------------------------------------- Lagrange */
 
 #[test]
 fn lagrange_long_names_resolve_to_the_short_station_names() {
@@ -540,7 +540,7 @@ fn lagrange_deliveries_parse_in_context() {
     );
 }
 
-/* ------------------------------------------- max box size (Task 10.1) */
+/* ------------------------------------------- max box size */
 
 #[test]
 fn max_container_size_from_the_details_text() {

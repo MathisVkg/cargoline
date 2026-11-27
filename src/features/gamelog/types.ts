@@ -43,7 +43,7 @@ export interface GameLogSettingsInput {
 
 export const MISSION_STATE_COMPLETED = "MISSION_STATE_COMPLETED";
 
-/** A Game.log found by Detect (Task 10.1). */
+/** A Game.log found by Detect. */
 export interface FoundLog {
   path: string;
   channel: string;

@@ -82,7 +82,7 @@ impl OcrState {
         }
     }
 
-    /// Whether any recognition is running (an update waits for it, Task 20).
+    /// Whether any recognition is running (an update waits for it).
     pub fn is_busy(&self) -> bool {
         self.running.lock().map(|r| !r.is_empty()).unwrap_or(true)
     }

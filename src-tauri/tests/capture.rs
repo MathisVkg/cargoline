@@ -1,4 +1,4 @@
-//! Headless tests for screenshot capture (Task 07): window selection, storage,
+//! Headless tests for screenshot capture: window selection, storage,
 //! linking, discarding, cleanup, the new setting and migration 0004.
 //! Temporary folders and databases only; no desktop access.
 

@@ -1,4 +1,4 @@
-/** Static placeholder rows while a page's code loads (Task 18). No animation: nothing runs. */
+/** Static placeholder rows while a page's code loads. No animation: nothing runs. */
 export function PageSkeleton() {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8" aria-busy="true" aria-label="Loading page">

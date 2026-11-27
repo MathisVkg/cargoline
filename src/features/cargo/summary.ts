@@ -1,4 +1,4 @@
-// Cargo page: Pickup and Destination summary (pure; Task 13). Milli-SCU integers throughout.
+// Cargo page: Pickup and Destination summary (pure). Milli-SCU integers throughout.
 //
 // Built on the By Location rows (`groupByLocation`): one row per stored stop, with the stop's
 // quantity already classified as known / derived / unknown (`stopQuantity`). Nothing here
@@ -147,9 +147,9 @@ export function describeAmount(amount: Amount): string {
   return amount.anyKnown ? `at least ${formatScu(amount.scuMilli)} SCU, part unknown` : "unknown SCU";
 }
 
-/* ------------------------------------------------------- Task 13.1 export */
+/* ------------------------------------------- export for the isometric view */
 
-/** One cargo objective, for the isometric arrangement (Task 13.1). */
+/** One cargo objective, for the isometric arrangement. */
 export interface RequirementCargo {
   key: string;
   contractId: number;

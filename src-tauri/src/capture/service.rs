@@ -167,7 +167,7 @@ pub fn start_cleanup<R: Runtime>(app: &AppHandle<R>) {
         .name("capture-cleanup".into())
         .spawn(move || {
             // The startup pass waits until the first contracts list has been served (at most
-            // FIRST_SCREEN_WAIT), so it never holds the connection ahead of it (Task 18).
+            // FIRST_SCREEN_WAIT), so it never holds the connection ahead of it.
             let waited = app
                 .state::<crate::startup::FirstScreenGate>()
                 .wait(crate::startup::FIRST_SCREEN_WAIT);

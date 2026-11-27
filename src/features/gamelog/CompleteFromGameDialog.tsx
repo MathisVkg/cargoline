@@ -8,7 +8,7 @@ import type { Completion } from "./flow";
 import { askRows } from "./completion";
 
 /**
- * "Ask me first" (Task 11 Part B): the contracts the game reports as completed, all ticked.
+ * "Ask me first": the contracts the game reports as completed, all ticked.
  * Confirm finalises the ticked ones (one transaction); Cancel and unticked ones go back to the
  * normal "completed in game" notices. Completions arriving while it is open are added to it.
  * Escape cancels. It never brings the window forward.

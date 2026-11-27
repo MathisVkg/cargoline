@@ -1,4 +1,4 @@
-// Shared ship state for the top-bar selector and the Contracts summary (Task 11).
+// Shared ship state for the top-bar selector and the Contracts summary.
 import { useSyncExternalStore } from "react";
 import { describeError, toCommandError } from "../contracts/api";
 import { createCustomShip, deleteCustomShip, getSelectedShip, listShips, setSelectedShip, setShipFavorite, updateCustomShip } from "./api";

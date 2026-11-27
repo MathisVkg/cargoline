@@ -1,9 +1,9 @@
 //! Setting finished contracts back to active, all or nothing, in one transaction.
 //!
 //! Two rules share the same code:
-//! - [`reactivate_contracts`] (Task 11 Undo): only `completed` contracts finished within the
+//! - [`reactivate_contracts`] (Undo): only `completed` contracts finished within the
 //!   last 5 minutes;
-//! - [`restore_contracts`] (Task 12 History): `completed` or `abandoned`, no time limit.
+//! - [`restore_contracts`] (History): `completed` or `abandoned`, no time limit.
 //!
 //! Both set `status = 'active'`, clear `finished_at` and move `updated_at` forward (never back).
 //! The run, cargo, ticks, MissionId and capture link are untouched.
@@ -71,7 +71,7 @@ impl Rule {
     }
 }
 
-/// Undo of a recent completion (Task 11).
+/// Undo of a recent completion.
 pub fn reactivate_contracts(
     conn: &mut Connection,
     ids: &[i64],
@@ -80,7 +80,7 @@ pub fn reactivate_contracts(
     set_active(conn, ids, now_ms, Rule::Undo)
 }
 
-/// Restore from History (Task 12): completed or abandoned contracts, no time limit.
+/// Restore from History: completed or abandoned contracts, no time limit.
 pub fn restore_contracts(
     conn: &mut Connection,
     ids: &[i64],

@@ -1,4 +1,4 @@
--- 0005: OCR processing states for captures (Task 08): pending -> processing -> done | failed.
+-- 0005: OCR processing states for captures: pending -> processing -> done | failed.
 -- The 0001 CHECK allowed 'recognized' / 'partial' but not 'done'. SQLite cannot change a CHECK
 -- constraint in place, so the table is rebuilt; rows are copied ('recognized' / 'partial' -> 'done').
 -- Nothing references contract_captures, so dropping and renaming is safe with foreign keys on.

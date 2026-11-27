@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Builds a Cargo Line release: the NSIS installer, the portable zip and SHA256SUMS.txt (Task 19).
+  Builds a Cargo Line release: the NSIS installer, the portable zip and SHA256SUMS.txt.
 
 .DESCRIPTION
   The same script runs on a developer PC and in .github/workflows/release.yml.

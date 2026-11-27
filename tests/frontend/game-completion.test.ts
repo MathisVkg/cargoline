@@ -1,4 +1,4 @@
-// Frontend unit tests for Task 11: the ship selector model, the capacity label, and
+// Frontend unit tests: the ship selector model, the capacity label, and
 // "Complete contracts finished in game" (batching, Ask dialog, automatic + Undo).
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -93,7 +93,7 @@ const due: FlowAction = { type: "completionDue" };
 const contract = (id: number): ContractDetail =>
   ({ id, title: `Haul ${id}`, rewardAuec: 1000 * id, totalScuMilli: 10_000 * id, status: "active" }) as ContractDetail;
 
-test("setting off (or a payload without the field): the Task 10 notice, nothing automatic", () => {
+test("setting off (or a payload without the field): the accepted-contract notice, nothing automatic", () => {
   const s = run(ended(1, "off"));
   assert.equal(s.notices.length, 1);
   assert.equal(s.completion.waiting.length, 0);

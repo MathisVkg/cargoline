@@ -1,4 +1,4 @@
-//! Task 18 tests: the catalog sync skip, the deferred-startup gate, the watcher's "nothing to
+//! Tests: the catalog sync skip, the deferred-startup gate, the watcher's "nothing to
 //! do" plan on an unchanged file, the trace helpers and the data folder override. Temporary
 //! files only.
 

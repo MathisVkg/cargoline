@@ -9,7 +9,7 @@ export interface ShipEntry {
   cargoScu: number;
   maxContainerScu: number | null;
   isFavorite: boolean;
-  /** Added by the user (Task 15): manufacturer "Custom", id `custom:…`. */
+  /** Added by the user: manufacturer "Custom", id `custom:…`. */
   isCustom: boolean;
 }
 

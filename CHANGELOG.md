@@ -4,6 +4,15 @@ All notable changes to Cargo Line are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## [1.0.0-beta.3] - Unreleased
+
+### Added
+
+- **Welcome guide on first launch:** a short guide to getting started opens once (existing users see it once
+  after updating). Settings → About → Show the welcome guide opens it again.
+- **Help in the README:** a "How to use Cargo Line" section for players: first-time setup, adding contracts,
+  the pages, and tips for common problems.
+
 ## [1.0.0-beta.2] - Unreleased
 
 ### Added

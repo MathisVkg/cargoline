@@ -1,4 +1,4 @@
-//! The app's only network access (Task 20): HTTPS GET requests through WinHTTP, the Windows HTTP
+//! The app's only network access: HTTPS GET requests through WinHTTP, the Windows HTTP
 //! stack (system TLS and proxy settings), to an allow-list of GitHub hosts.
 //!
 //! - `api.github.com`, under `/repos/MathisVkg/cargoline/` only;
@@ -19,7 +19,7 @@ pub const API_URL: &str = "https://api.github.com/repos/MathisVkg/cargoline/rele
 pub const FEED_ENV: &str = "CARGO_LINE_UPDATE_FEED";
 const API_PREFIX: &str = "/repos/MathisVkg/cargoline/";
 const DOWNLOAD_PREFIX: &str = "/MathisVkg/cargoline/releases/download/";
-/// Where github.com redirects release downloads (seen on a real redirect, see the Task 20 report).
+/// Where github.com redirects release downloads (GitHub's current download hosts).
 pub const ASSET_HOSTS: &[&str] = &[
     "release-assets.githubusercontent.com",
     "objects.githubusercontent.com",

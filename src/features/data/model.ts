@@ -1,4 +1,4 @@
-// Settings → Updates / Data / About texts (pure; Task 17).
+// Settings → Updates / Data / About texts (pure).
 
 /** Settings groups, in page order. */
 export const SETTINGS_GROUPS = [

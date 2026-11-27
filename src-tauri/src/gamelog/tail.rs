@@ -25,7 +25,7 @@ pub enum TailError {
     Unreadable(String),
 }
 
-/// What a poll does, decided from the file's size and creation time only (Task 18).
+/// What a poll does, decided from the file's size and creation time only.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PollPlan {
     /// Read again from the start (the file was replaced or truncated).

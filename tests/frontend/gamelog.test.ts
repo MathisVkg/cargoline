@@ -1,5 +1,5 @@
 // Frontend unit tests for Game.log events, the modal flow, notices, the shortcut and the
-// cross-check (Task 10).
+// cross-check.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { initialFlow, queueSummary, reduceFlow, type FlowAction, type FlowState } from "../../src/features/gamelog/flow.ts";

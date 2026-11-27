@@ -2,10 +2,10 @@
 //!
 //! Only the top (title, reward card) and the middle (Details, Primary Objectives) are read. The
 //! bottom buttons (`ABANDON`, `ACCEPT OFFER`, `SHARE`, `TRACK`) are game controls and are never
-//! used (Task 10.1): they animate right after accepting and read poorly.
+//! used: they animate right after accepting and read poorly.
 //!
 //! Anchors: the `PRIMARY OBJECTIVES` and `DETAILS` headers and the `Reward` label. Geometry is
-//! relative to the anchors and the frame, measured on the Task 06 fixtures (4K borderless):
+//! relative to the anchors and the frame, measured on the 4K fixtures (borderless):
 //! - the headers sit about 0.51 × frame height above the button row, so the panel content ends at
 //!   0.46 × height below them (clear of the buttons);
 //! - `DETAILS` sits about 0.29 × frame width left of `PRIMARY OBJECTIVES` (used when the
@@ -196,7 +196,7 @@ pub fn plan_regions(anchors: &Anchors<'_>, width: u32, height: u32) -> Vec<Plann
         let hb = header.bbox;
         let line_h = f64::from(hb.height.max(1));
         let (hx, hy, hw) = (f64::from(hb.x), f64::from(hb.y), f64::from(hb.width));
-        // Start at the header itself: starting below it cut the first objective line (Task 08).
+        // Start at the header itself: starting below it cut the first objective line.
         let top = hy - line_h * 0.3;
         objectives = clamp(
             hx - line_h,

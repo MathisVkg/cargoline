@@ -1,4 +1,4 @@
-// History page text and formatting (pure; Task 12).
+// History page text and formatting (pure).
 import { contractRef } from "../contracts/grouping.ts";
 import { formatAuec, formatScu } from "../contracts/scu.ts";
 import type { ContractDetail, ContractStatus } from "../contracts/types.ts";

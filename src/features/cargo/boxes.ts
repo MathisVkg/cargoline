@@ -1,11 +1,11 @@
-// Box estimation and colours for the Cargo arrangement view (pure; Task 13.1). Milli-SCU.
+// Box estimation and colours for the Cargo arrangement view (pure). Milli-SCU.
 //
 // Rules:
 // 1. Stored `exact` box groups are used as they are (and any cargo they don't cover is filled
 //    with estimated boxes, so cargo is never dropped).
 // 2. Otherwise the largest allowed container = the requirement's max box (from Details or typed
 //    in), else 32 SCU; then the largest standard size not above it. The ship never changes the
-//    boxes (Task 13.2): the catalog's max container value is unreliable (Hermes and Ironclad
+//    boxes: the catalog's max container value is unreliable (Hermes and Ironclad
 //    report 1 SCU, Hull B and Hull C report 16 for grids that hold 32-SCU containers).
 // 3. Greedy fill, largest first. A fractional remainder becomes one extra 1-SCU box marked
 //    `partial` that carries exactly the remainder.

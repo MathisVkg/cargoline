@@ -1,4 +1,4 @@
-//! Optional Game.log monitoring (Task 10). Off by default; with it off the app behaves exactly as
+//! Optional Game.log monitoring. Off by default; with it off the app behaves exactly as
 //! before. Never changes contract data on its own: it only reports events to the frontend.
 //!
 //! - [`patterns`]: every line format, in one place.
@@ -22,7 +22,7 @@ pub struct FirstObjective {
     pub commodity: String,
     pub location: String,
     /// The log names a star system, not the destination (interstellar contracts: "… to Pyro
-    /// System"). The location is then not compared with the form (Task 16).
+    /// System"). The location is then not compared with the form.
     pub location_is_system: bool,
 }
 
@@ -63,7 +63,7 @@ pub enum GameLogEvent {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum CompleteFromGame {
-    /// Off: a hint with Mark complete (Task 10 behaviour).
+    /// Off: a hint with Mark complete (the default behaviour).
     #[default]
     Off,
     Ask,

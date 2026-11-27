@@ -1,4 +1,4 @@
-// Complete contracts finished in game (Task 11 Part B), pure helpers.
+// Complete contracts finished in game, pure helpers.
 import { contractRef } from "../contracts/grouping.ts";
 import type { ContractDetail } from "../contracts/types.ts";
 import { completionText, type Completion, type CompletionBanner } from "./flow.ts";

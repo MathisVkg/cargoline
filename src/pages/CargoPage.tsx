@@ -28,8 +28,8 @@ const sessionOpen = { pickup: true, delivery: true };
 let sessionMode: ColorMode = "destination";
 
 /**
- * Cargo overview: Pickup and Destination summaries of the active contracts (Task 13) and the
- * isometric "Cargo arrangement" (Task 13.1), linked by a shared highlight.
+ * Cargo overview: Pickup and Destination summaries of the active contracts and the
+ * isometric "Cargo arrangement", linked by a shared highlight.
  *
  * Layout rule: the two panels sit side by side whenever the **app width** is at least 990 CSS px,
  * and stack only below that (a width rule, never orientation, so a tall/portrait window that is

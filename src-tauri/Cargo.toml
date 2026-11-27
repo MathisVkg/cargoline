@@ -1,6 +1,6 @@
 [package]
 name = "cargo-line"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.3"
 description = "Cargo Line — offline-first Star Citizen hauling contract manager (unofficial)"
 authors = ["Cargo Line contributors"]
 license = "GPL-3.0-only"
@@ -22,7 +22,7 @@ tauri = { version = "2", features = [] }
 rusqlite = { version = "0.41", features = ["bundled"] }
 rusqlite_migration = "2.7"
 serde = { version = "1", features = ["derive"] }
-# Version comparison for the update check (Task 20; already in the tree through tauri-utils).
+# Version comparison for the update check (already in the tree through tauri-utils).
 semver = "1"
 serde_json = "1"
 thiserror = "2"
@@ -30,7 +30,7 @@ thiserror = "2"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # PNG encoding of screenshots (already in the dependency tree through Tauri's codegen).
 png = "0.18"
-# Native open-file dialog for the Game.log path (Task 10.1; only `dialog:allow-open` is granted).
+# Native open-file dialog for the Game.log path (only `dialog:allow-open` is granted).
 tauri-plugin-dialog = "=2.8.4"
 
 # Native screen capture: the same `windows` version Tauri already uses (no second copy).
@@ -77,7 +77,7 @@ opt-level = 3
 [profile.dev.package.miniz_oxide]
 opt-level = 3
 
-# Release builds (Task 18), measured on this project (from scratch, this PC):
+# Release builds, measured on this project (from scratch, this PC):
 # - default: 14.5 MB, 98 s;
 # - lto = true + codegen-units = 1: 13.3 MB, about 180 s (chosen);
 # - the same with opt-level = "s": 9.9 MB, but a 4K screenshot PNG encodes about 3.5x slower

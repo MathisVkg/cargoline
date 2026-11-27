@@ -1,4 +1,4 @@
-//! Optional startup timing marks (Task 18).
+//! Optional startup timing marks.
 //!
 //! **Off by default.** With `CARGO_LINE_STARTUP_TRACE=1`, each mark is written as one line to
 //! stderr and to `startup-trace.log` in the data folder (replaced at every launch):

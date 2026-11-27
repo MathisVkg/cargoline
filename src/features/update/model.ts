@@ -1,5 +1,5 @@
-// Update check (Task 20): the status from Rust (`update::UpdateStatus`) and the texts the app
-// shows. Pure functions, tested in tests/frontend/task20.test.ts.
+// Update check: the status from Rust (`update::UpdateStatus`) and the texts the app
+// shows. Pure functions, tested in tests/frontend/updates.test.ts.
 import type { AppMode } from "../data/model.ts";
 
 export type CheckResult =

@@ -5,7 +5,7 @@ import { CompleteFromGameDialog } from "./CompleteFromGameDialog";
 import { BANNER_MS, COMPLETION_BATCH_MS, UNDO_MS, type FlowAction, type FlowState } from "./flow";
 
 /**
- * Runs "Complete contracts finished in game" from the app shell, on any page (Task 11 Part B):
+ * Runs "Complete contracts finished in game" from the app shell, on any page:
  * - batches completions arriving within ~2 s, then opens the Ask dialog (waiting while another
  *   modal is open) or finalises them automatically;
  * - expires the completion banner (30 s with Undo).

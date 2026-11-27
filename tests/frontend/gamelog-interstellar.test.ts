@@ -1,4 +1,4 @@
-// Frontend unit tests for Task 16: the narrow-window banner, the Game.log cross-check with an
+// Frontend unit tests: the narrow-window banner, the Game.log cross-check with an
 // interstellar objective (system name), and the abandon end state through the notice flow.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -50,7 +50,7 @@ test("cross-check: a system name in the log is not compared with the destination
   const { draft } = draftFromParsed(parsed);
   const first = draft.requirements[0];
   const location = flagKeys.location(first.deliveries[0].key);
-  // The false "Differs from game log" on Shepherd's Rest (Task 16).
+  // The false "Differs from game log" on Shepherd's Rest.
   const interstellar = { scu: 2, commodity: "Souvenirs", location: "Pyro System", locationIsSystem: true };
   assert.equal(crossCheckFlags(draft, interstellar).size, 0);
   // SCU and commodity are still compared.

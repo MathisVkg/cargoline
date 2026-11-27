@@ -1,4 +1,4 @@
-// Pure helpers that turn a parsed contract into form state (Task 09). No React, no IPC.
+// Pure helpers that turn a parsed contract into form state. No React, no IPC.
 import { emptyRequirement, emptyStop, isDraftEmpty, type ContractDraft, type RequirementDraft, type StopDraft } from "../contracts/draft.ts";
 import { contractRef } from "../contracts/grouping.ts";
 import { parseRewardAuec, parseScuMilli } from "../contracts/scu.ts";
@@ -57,7 +57,7 @@ export function draftFromParsed(parsed: ParsedContract): { draft: ContractDraft;
       ...base,
       commodityName: text(r.commodity),
       quantityScu: text(r.totalScu),
-      // The Details text's max container size applies to every requirement (Task 10.1).
+      // The Details text's max container size applies to every requirement.
       maxBoxSizeScu: parsed.maxBoxScu ? text(parsed.maxBoxScu) : "",
       pickups: stops(r.pickups, "No pickup line was read"),
       deliveries: stops(r.deliveries, "No delivery was read"),
@@ -173,7 +173,7 @@ export function screenBanner(parsed: Pick<ParsedContract, "screen" | "problems" 
 }
 
 /**
- * Narrow windows (Task 16): 4:3 and similar are not supported. The game cuts the contract panel
+ * Narrow windows: 4:3 and similar are not supported. The game cuts the contract panel
  * differently there, so a frame narrower than 16:10 only gets this non-blocking warning; there are
  * no special parsing rules for cut-off text.
  */
@@ -187,7 +187,7 @@ export function narrowWindowBanner(frame: { width: number | null; height: number
   return frame.width / frame.height < NARROW_ASPECT_LIMIT - 1e-9 ? NARROW_WINDOW_BANNER : null;
 }
 
-/** The hint on fields that disagree with the Game.log first objective (Task 10). */
+/** The hint on fields that disagree with the Game.log first objective. */
 export const GAME_LOG_MISMATCH = "Differs from game log — check";
 
 const sameName = (a: string, b: string) => a.trim().replace(/\s+/g, " ").toLowerCase() === b.trim().replace(/\s+/g, " ").toLowerCase();
@@ -211,7 +211,7 @@ export function crossCheckFlags(
     flags.set(flagKeys.total(first.key), GAME_LOG_MISMATCH);
   }
   // Interstellar contracts: the log names the system ("Pyro System"), not the destination.
-  // SCU and commodity are still compared; the location is not (Task 16).
+  // SCU and commodity are still compared; the location is not.
   const delivery = first.deliveries[0];
   if (delivery && !objective.locationIsSystem && delivery.locationName.trim() && !sameName(delivery.locationName, objective.location)) {
     flags.set(flagKeys.location(delivery.key), GAME_LOG_MISMATCH);

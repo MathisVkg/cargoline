@@ -1,4 +1,4 @@
-// Frontend unit tests for Task 18: reference lists loaded lazily and cached for the session, the
+// Frontend unit tests: reference lists loaded lazily and cached for the session, the
 // startup trace recorder (off = nothing sent after the first answer), code splitting, and the
 // static dark shell.
 import { test } from "node:test";

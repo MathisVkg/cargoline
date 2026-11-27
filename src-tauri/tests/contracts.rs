@@ -634,7 +634,7 @@ fn frontend_payload_shape_deserializes_and_output_is_camel_case() {
 }
 
 // ---------------------------------------------------------------------------
-// Task 04: box groups in contract details, grouping preference
+// Box groups in contract details, grouping preference
 // ---------------------------------------------------------------------------
 
 #[test]

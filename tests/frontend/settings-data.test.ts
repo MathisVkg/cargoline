@@ -1,4 +1,4 @@
-// Frontend unit tests for Task 17: Settings group order, Data texts (backup name, export notice,
+// Frontend unit tests: Settings group order, Data texts (backup name, export notice,
 // restore confirmation with counts, refusals), About texts and data credits, Updates hint.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -35,7 +35,7 @@ test("Settings groups and description", () => {
     ["01 Game", "02 OCR Capture", "03 Updates", "04 Data", "05 About"],
   );
   assert.ok(!/placeholder/i.test(SETTINGS_DESCRIPTION), "no longer says settings are placeholders");
-  // The page source uses the same order. (Updates replaced its disabled placeholder in Task 20.)
+  // The page source uses the same order. (Updates replaced its disabled placeholder.)
   const page = readFileSync(join(repo, "src", "pages", "SettingsPage.tsx"), "utf8");
   const order = ["<GameSection", "<OcrSection", "<UpdatesSection", "<DataSection", "<AboutSection"].map((t) => page.indexOf(t));
   assert.ok(order.every((i, k) => i > 0 && (k === 0 || i > order[k - 1])), `section order ${order}`);

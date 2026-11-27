@@ -1,4 +1,4 @@
-// Frontend unit tests for Task 10.1: the single retry, choosing between readings, max box size,
+// Frontend unit tests: the single retry, choosing between readings, max box size,
 // and Detect outcomes.
 import { test } from "node:test";
 import assert from "node:assert/strict";

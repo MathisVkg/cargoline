@@ -1,4 +1,4 @@
-// Frontend tests for Task 20: the texts for each check result, the top-bar marker, the button
+// Frontend tests: the texts for each check result, the top-bar marker, the button
 // for each mode, the release notes as plain text, and no network access from the web view.
 import { test } from "node:test";
 import assert from "node:assert/strict";

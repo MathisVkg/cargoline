@@ -1,4 +1,4 @@
-//! Task 17 tests: backup export, validation of a chosen backup, safety copies, the startup swap
+//! Tests: backup export, validation of a chosen backup, safety copies, the startup swap
 //! of a staged restore, and the allow-lists of the open-folder / open-link commands.
 //! Temporary folders and synthetic data only.
 

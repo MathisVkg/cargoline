@@ -1,4 +1,4 @@
-//! Finding `Game.log` without opening the game's process (Task 10.1).
+//! Finding `Game.log` without opening the game's process.
 //!
 //! Sources, all read-only, merged and ranked:
 //! 1. the running `StarCitizen.exe` image path, queried without a process handle

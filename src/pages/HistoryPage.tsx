@@ -38,7 +38,7 @@ interface Notice {
 const NOTICE_MS = 6000;
 
 /**
- * History (Task 12): lifetime statistics (completed contracts only), finished contracts grouped
+ * History: lifetime statistics (completed contracts only), finished contracts grouped
  * by their run, Restore to active, and Clear History. Reloads whenever contracts change
  * elsewhere (`flow.listVersion`).
  */

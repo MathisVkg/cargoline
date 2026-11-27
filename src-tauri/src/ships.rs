@@ -1,13 +1,13 @@
 //! The bundled ship catalog (`resources/catalog/ships.json`, Star Citizen Wiki API) and the
 //! user's favourites and selected ship.
 //!
-//! Storage (Task 11, option A): the Task 02 tables fit. `ship_favorites` has a foreign key to
+//! Storage: the initial schema's tables fit. `ship_favorites` has a foreign key to
 //! `ships`, so the JSON is upserted into `ships` at startup (idempotent, one transaction) and its
 //! version recorded in `catalog_metadata`. Ships that leave the list are **never deleted** (a
 //! favourite would cascade away): they are marked `availability_status = 'removed'` and hidden.
 //! The selection is the existing typed setting `selected_ship_id`.
 //!
-//! Custom ships (Task 15) live in the same table so favourites keep their foreign key: rows with
+//! Custom ships live in the same table so favourites keep their foreign key: rows with
 //! `availability_status = 'custom'`, an id `custom:<16 hex>` and manufacturer "Custom". The catalog
 //! sync only ever touches `'listed'` rows (and catalog ids may not start with `custom:`), so it can
 //! never overwrite, mark removed or delete a custom ship. No migration: the column has no CHECK.
@@ -128,7 +128,7 @@ pub fn catalog_up_to_date(
     Ok(listed == list.items.len() as i64)
 }
 
-/// The startup sync (Task 18): checks first and only writes when the bundled catalog differs
+/// The startup sync: checks first and only writes when the bundled catalog differs
 /// from the stored one. `None` = already up to date, nothing written (no write lock taken).
 pub fn sync_catalog_if_changed(
     conn: &mut Connection,
@@ -213,7 +213,7 @@ pub struct ShipEntry {
     pub cargo_scu: u32,
     pub max_container_scu: Option<u32>,
     pub is_favorite: bool,
-    /// Added by the user (Task 15).
+    /// Added by the user.
     pub is_custom: bool,
 }
 

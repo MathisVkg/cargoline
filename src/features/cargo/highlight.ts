@@ -1,4 +1,4 @@
-// Linked highlight between the Pickup / Destination summary and the box view (pure; Task 13.1).
+// Linked highlight between the Pickup / Destination summary and the box view (pure).
 //
 // - A pickup line (location L, commodity C) ↔ boxes of commodity C picked up at L.
 // - A destination line (L, C) ↔ boxes of commodity C going to L, including "Several

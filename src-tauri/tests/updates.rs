@@ -1,4 +1,4 @@
-//! Task 20 tests: semver ordering and the channel rule, release parsing (synthetic fixture
+//! Tests: semver ordering and the channel rule, release parsing (synthetic fixture
 //! `update_feed.json`), the host allow-list and the test feed, SHA256SUMS parsing, file
 //! verification, the throttle, "Skip this version", the installed/portable/dev decision, the
 //! download folder, the installer command line, and the single place that opens connections.
@@ -250,10 +250,16 @@ const HASH_ZIP: &str = "630c05dc3c73472bbd88351ce5785805277ea84a5e5e2edca109bf8d
 
 #[test]
 fn sha256sums_parsing() {
-    // Task 19 format: "<hash>  <name>", LF.
-    let task19 = format!("{HASH_SETUP}  {SETUP}\n{HASH_ZIP}  {ZIP}\n");
-    assert_eq!(expected_hash(&task19, SETUP).as_deref(), Some(HASH_SETUP));
-    assert_eq!(expected_hash(&task19, ZIP).as_deref(), Some(HASH_ZIP));
+    // The release format: "<hash>  <name>", LF.
+    let release_format = format!("{HASH_SETUP}  {SETUP}\n{HASH_ZIP}  {ZIP}\n");
+    assert_eq!(
+        expected_hash(&release_format, SETUP).as_deref(),
+        Some(HASH_SETUP)
+    );
+    assert_eq!(
+        expected_hash(&release_format, ZIP).as_deref(),
+        Some(HASH_ZIP)
+    );
     // CRLF, one space, binary-mode star, upper-case hex.
     let other = format!(
         "{}  {SETUP}\r\n{} *{ZIP}\r\n",
@@ -268,11 +274,11 @@ fn sha256sums_parsing() {
     assert_eq!(expected_hash(&other, ZIP).as_deref(), Some(HASH_ZIP));
     // A missing line, a similar name, a broken hash.
     assert_eq!(
-        expected_hash(&task19, "Cargo-Line_1.0.0-beta.2_x64-setup.exe"),
+        expected_hash(&release_format, "Cargo-Line_1.0.0-beta.2_x64-setup.exe"),
         None
     );
     assert_eq!(
-        expected_hash(&task19, "Cargo-Line_1.0.0-beta.1_x64-setup"),
+        expected_hash(&release_format, "Cargo-Line_1.0.0-beta.1_x64-setup"),
         None
     );
     assert_eq!(expected_hash(&format!("abc123  {SETUP}\n"), SETUP), None);

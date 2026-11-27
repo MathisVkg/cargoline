@@ -19,13 +19,13 @@ interface Placement {
 }
 
 /**
- * Top-bar ship selector (Task 11). Informational only: the selected ship gives the Contracts
+ * Top-bar ship selector. Informational only: the selected ship gives the Contracts
  * summary its capacity; it is never linked to contracts or runs.
  *
  * Popover pattern: the trigger opens a small dialog with a search field and the list: Favourites,
  * then Custom ships, then All ships. ArrowDown / ArrowUp move between ships, Enter or a click
  * selects, the star toggles a favourite without selecting, Escape closes and returns focus to the
- * trigger. Custom ships (Task 15) also have Edit and Delete buttons; "+ Add custom ship…" opens the
+ * trigger. Custom ships also have Edit and Delete buttons; "+ Add custom ship…" opens the
  * add dialog, and the new ship is selected.
  */
 export function ShipSelector() {

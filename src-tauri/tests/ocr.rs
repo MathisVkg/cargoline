@@ -1,4 +1,4 @@
-//! Headless OCR tests (Task 08): no real engine, no desktop. Fake engines are small .cmd scripts
+//! Headless OCR tests: no real engine, no desktop. Fake engines are small .cmd scripts
 //! in temporary folders; databases are temporary.
 
 use std::path::{Path, PathBuf};
@@ -143,7 +143,7 @@ fn tsv_boxes_map_back_to_the_source_image() {
 
 #[test]
 fn screen_state_comes_from_the_reward_card() {
-    // Accepted: the tokens of a real Task 06 / 10 capture (positions at 4K).
+    // Accepted: the tokens of a real capture (positions at 4K).
     let accepted = vec![
         line("Junior Rank - Direct Medium Cargo Haul", 1300, 380),
         line("Reward", 2604, 400),

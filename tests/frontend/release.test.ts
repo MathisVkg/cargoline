@@ -1,4 +1,4 @@
-// Frontend and tooling tests for Task 19: one version number in every file, set-version's input
+// Frontend and tooling tests: one version number in every file, set-version's input
 // check (on a temporary copy, never the real files), the CHANGELOG section extraction, the About
 // version line per mode, and the release workflow's rules.
 import { test } from "node:test";

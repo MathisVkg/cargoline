@@ -1,4 +1,4 @@
-//! The max container size from the Details text (Task 10.1). Nothing else is read from it.
+//! The max container size from the Details text. Nothing else is read from it.
 //!
 //! Seen in mission texts:
 //! - "At most the containers will be 8 SCU in size"

@@ -713,7 +713,7 @@ fn settings_defaults_are_safe() {
     assert_eq!(s.complete_from_game_mode, CompleteFromGameMode::Ask);
     assert!(
         s.check_updates_automatically,
-        "update checks are on by default (Task 20)"
+        "update checks are on by default"
     );
     assert_eq!(s.update_last_check_ms, None);
     assert_eq!(s.update_skipped_version, None);
@@ -742,6 +742,7 @@ fn settings_persist_across_restarts_and_restore_defaults() {
         update_last_check_ms: Some(1_700_000_000_000),
         update_skipped_version: Some("1.0.0-beta.3".into()),
         update_installing_version: None,
+        welcome_seen: true,
         contract_grouping: ContractGrouping::ByContract,
     };
     {

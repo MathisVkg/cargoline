@@ -17,7 +17,7 @@ interface Tip {
 }
 
 /**
- * "Cargo arrangement" (Task 13.1): a read-only, stylised isometric view of all active cargo.
+ * "Cargo arrangement": a read-only, stylised isometric view of all active cargo.
  * Illustrative only: it never claims the packing fits the real ship and never changes data.
  */
 export function CargoView({
@@ -202,7 +202,7 @@ const pts = (list: [number, number, number][]) =>
 
 /**
  * One platform's floor: grid and outline. The overflow platform is amber (outline and tint) with
- * no text on it: a label overlapped the boxes (Task 14). The note under the view gives its SCU.
+ * no text on it: a label overlapped the boxes. The note under the view gives its SCU.
  */
 function PlatformFloor({ platform: p, zoomed }: { platform: PlatformArea; zoomed: boolean }) {
   const x1 = p.x + p.width;

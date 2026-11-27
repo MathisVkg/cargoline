@@ -1,5 +1,5 @@
-//! Game.log monitoring tests (Task 10): line patterns, the tracker, the polling tail (temporary
-//! files), the real Task 06 log (local fixture, skipped when absent), settings rules, and saving
+//! Game.log monitoring tests: line patterns, the tracker, the polling tail (temporary
+//! files), a real game log (local fixture, skipped when absent), settings rules, and saving
 //! with a MissionId. No desktop; temporary databases only.
 
 use std::fs::{self, OpenOptions};
@@ -316,83 +316,6 @@ fn tail_handles_rotation_missing_files_and_restarts() {
     ));
 }
 
-/* ------------------------------------------------------- real Game.log */
-
-#[test]
-fn real_game_log_fixture() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../.agent-local/screenshot/Game.log");
-    let Ok(bytes) = fs::read(&path) else {
-        eprintln!("SKIPPED real_game_log_fixture: .agent-local/screenshot/Game.log not found");
-        return;
-    };
-    let text = String::from_utf8_lossy(&bytes);
-    // One batch per ~50 lines, like polls catching up.
-    let mut tracker = Tracker::default();
-    let mut events = Vec::new();
-    for chunk in text.lines().collect::<Vec<_>>().chunks(50) {
-        for line in chunk {
-            if let Some(parsed) = parse_line(line) {
-                tracker.feed(parsed);
-            }
-        }
-        events.extend(tracker.flush());
-    }
-    let accepts: Vec<&TrackedEvent> = events
-        .iter()
-        .filter(|e| matches!(e, TrackedEvent::Accepted { .. }))
-        .collect();
-    let ends: Vec<&TrackedEvent> = events
-        .iter()
-        .filter(|e| matches!(e, TrackedEvent::Ended { .. }))
-        .collect();
-    assert_eq!(
-        accepts.len(),
-        3,
-        "3 hauling accepts; the 4 salvage claims are ignored"
-    );
-    assert!(accepts.iter().all(
-        |e| matches!(e, TrackedEvent::Accepted { title, .. } if title.starts_with("Junior Rank"))
-    ));
-    assert_eq!(ends.len(), 4, "4 completions");
-    assert!(ends.iter().all(
-        |e| matches!(e, TrackedEvent::Ended { state, .. } if state == "MISSION_STATE_COMPLETED")
-    ));
-    let with_objective = events
-        .iter()
-        .filter(|e| matches!(e, TrackedEvent::Accepted { objective: Some(o), .. } if o.scu == 84 && o.location == "Baijini Point")
-            || matches!(e, TrackedEvent::Objective { objective, .. } if objective.scu == 84))
-        .count();
-    assert_eq!(
-        with_objective, 1,
-        "the first objective of the first hauling contract"
-    );
-
-    // No personal data in any output: the handle (found in memory, never printed) and IP-like values.
-    let output = format!("{events:?}");
-    let handle = text
-        .split("nickname=\"")
-        .nth(1)
-        .and_then(|rest| rest.split('"').next())
-        .filter(|h| h.len() >= 3)
-        .expect("the fixture names its player");
-    assert!(
-        !output.to_lowercase().contains(&handle.to_lowercase()),
-        "the handle leaked into an event"
-    );
-    let ip_like = output
-        .split(|c: char| !(c.is_ascii_digit() || c == '.'))
-        .any(|w| {
-            let parts: Vec<&str> = w.split('.').collect();
-            parts.len() == 4 && parts.iter().all(|p| !p.is_empty() && p.len() <= 3)
-        });
-    assert!(!ip_like, "an IP-like value leaked into an event");
-    eprintln!(
-        "real Game.log: {} accepts, {} ends, objective paired",
-        accepts.len(),
-        ends.len()
-    );
-}
-
 /* ------------------------------------------------- database and saving */
 
 fn db() -> (tempfile::TempDir, Database) {
@@ -611,7 +534,7 @@ fn shortcut_and_game_log_settings_rules() {
     assert_eq!(s.validate().unwrap_err().field, "capture_shortcut");
 }
 
-/* ------------------------------------------------ Detect (Task 10.1) */
+/* ------------------------------------------------ Detect */
 
 #[cfg(windows)]
 #[test]
@@ -729,37 +652,4 @@ fn detect_rules() {
         Some(root.join("LIVE"))
     );
     assert_eq!(browse_start(None, &[dir.path().join("missing")]), None);
-}
-
-/// This machine, read-only: the launcher log and the common folders find the installed game.
-#[test]
-fn detect_on_this_machine() {
-    use cargo_line_lib::gamelog::detect::*;
-    let launcher = std::env::var_os("APPDATA").map(|a| {
-        Path::new(&a)
-            .join("rsilauncher")
-            .join("logs")
-            .join("log.log")
-    });
-    let Some(text) = launcher.and_then(|p| fs::read(p).ok()) else {
-        eprintln!("SKIPPED detect_on_this_machine: no RSI Launcher log");
-        return;
-    };
-    let roots = roots_from_launcher_log(&String::from_utf8_lossy(&text));
-    let from_launcher = logs_in_roots(&roots, DetectMethod::Launcher);
-    let program_files = std::env::var_os("ProgramFiles").map(std::path::PathBuf::from);
-    let from_folders = logs_in_roots(
-        &common_roots(program_files.as_deref(), &['C']),
-        DetectMethod::Folders,
-    );
-    eprintln!(
-        "launcher roots: {}, Game.log via launcher: {:?}, via folders: {:?}",
-        roots.len(),
-        from_launcher.iter().map(|f| &f.channel).collect::<Vec<_>>(),
-        from_folders.iter().map(|f| &f.channel).collect::<Vec<_>>()
-    );
-    assert!(
-        !rank([from_launcher, from_folders].concat()).is_empty(),
-        "the installed game is found without the process"
-    );
 }

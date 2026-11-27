@@ -1,4 +1,4 @@
-//! Task 19 tests: where the data goes (override, portable, default), which kind of copy is
+//! Tests: where the data goes (override, portable, default), which kind of copy is
 //! running, the OCR bundle lookup order and the portable folder checks. Pure path logic, plus a
 //! temporary folder for the write check.
 

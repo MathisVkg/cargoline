@@ -1,4 +1,4 @@
-// Startup timing marks from the frontend (Task 18). Off unless the app was started with
+// Startup timing marks from the frontend. Off unless the app was started with
 // CARGO_LINE_STARTUP_TRACE=1: the first batch asks the backend, and when tracing is off nothing
 // more is recorded or sent. Marks are names only (no data).
 import { invoke } from "@tauri-apps/api/core";

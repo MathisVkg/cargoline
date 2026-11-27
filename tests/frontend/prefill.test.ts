@@ -1,4 +1,4 @@
-// Frontend unit tests for filling Add Contract from a parsed screenshot (Task 09).
+// Frontend unit tests for filling Add Contract from a parsed screenshot.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {

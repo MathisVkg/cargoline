@@ -1,4 +1,4 @@
-// Add Contract suggestion lists (Task 18). Loaded when the form first opens, never at startup.
+// Add Contract suggestion lists. Loaded when the form first opens, never at startup.
 // - The bundled reference lists never change while the app runs: loaded once, kept for the
 //   session (a failed load is retried at the next open).
 // - The locations and commodities taken from saved contracts change when contracts are saved,

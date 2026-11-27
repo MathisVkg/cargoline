@@ -1,4 +1,4 @@
-// Capture shortcut (Task 10 C): recording and matching while Cargo Line has focus. Mirrors
+// Capture shortcut: recording and matching while Cargo Line has focus. Mirrors
 // `validate_shortcut` in src-tauri/src/settings/models.rs.
 
 export interface KeyLike {

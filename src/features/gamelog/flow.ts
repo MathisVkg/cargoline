@@ -1,11 +1,11 @@
-// Pure state machine for Game.log events and the Add Contract modal (Task 10). No React, no IPC.
+// Pure state machine for Game.log events and the Add Contract modal. No React, no IPC.
 //
 // - Accepted + automatic capture, modal closed → open Add Contract attached to the event.
 // - Accepted + automatic capture, modal open → queue (arrival order); the next opens on close.
 // - Accepted, automatic capture off → a notice "Accepted in game: <title> · Add contract".
 // - Ended (active contract) → a notice with Mark complete / Abandon. Never acts on its own,
 //   except a MISSION_STATE_COMPLETED end while "Complete contracts finished in game" is on
-//   (Task 11 Part B): batched (~2 s) into the Ask dialog, or finalised automatically with Undo.
+//   then it is batched (~2 s) into the Ask dialog, or finalised automatically with Undo.
 //   Each MissionId acts once; any other end state stays a notice.
 // - The capture shortcut: closed → open with capture; Add → recapture; Edit → nothing.
 import type { AcceptedEvent, FirstObjective, GameLogEvent } from "./types.ts";
@@ -13,7 +13,8 @@ import { MISSION_STATE_COMPLETED } from "./types.ts";
 
 export interface ModalState {
   open: boolean;
-  kind: "add" | "edit" | null;
+  /** `welcome`: the welcome guide (first launch, or Settings → About). Never stacks either. */
+  kind: "add" | "edit" | "welcome" | null;
   /** The in-game contract this form is for (its MissionId is saved with it). */
   event: AcceptedEvent | null;
   /** Opened automatically by a Game.log accept: saved with source `auto_capture`. */
@@ -71,6 +72,8 @@ export interface FlowState {
   banner: CompletionBanner | null;
   /** Incremented when contracts changed outside the page (it reloads its list). */
   listVersion: number;
+  /** The welcome guide waits for another modal to close; it opens before queued accepts. */
+  welcomePending: boolean;
 }
 
 export type FlowAction =
@@ -83,6 +86,8 @@ export type FlowAction =
   | { type: "dismiss"; noticeId: string }
   | { type: "saved"; missionId: string | null }
   | { type: "shortcut" }
+  /** Show the welcome guide (at first launch, or from Settings → About). */
+  | { type: "welcome" }
   /** The batching window ended: open the Ask dialog / start the automatic run when possible. */
   | { type: "completionDue" }
   /** Another confirmation dialog opened or closed on the page. */
@@ -111,6 +116,7 @@ export const initialFlow: FlowState = {
   completion: NO_COMPLETIONS,
   banner: null,
   listVersion: 0,
+  welcomePending: false,
 };
 
 /** The Ask dialog counts as a modal for the Add Contract flow (they never stack). */
@@ -127,9 +133,16 @@ function asNotices(state: FlowState, items: readonly Completion[]): FlowNotice[]
   return notices;
 }
 
-/** After a modal closes, the next queued accept opens. */
+const openWelcome = (state: FlowState): FlowState => ({
+  ...state,
+  welcomePending: false,
+  modal: { ...CLOSED, open: true, kind: "welcome", session: state.modal.session + 1 },
+});
+
+/** After a modal closes, a waiting welcome guide opens first, then the next queued accept. */
 function openQueued(state: FlowState): FlowState {
   if (state.modal.open || askOpen(state)) return state;
+  if (state.welcomePending) return openWelcome(state);
   const [next, ...queue] = state.queue;
   return next ? openAdd({ ...state, queue }, next, true, true) : state;
 }
@@ -274,8 +287,12 @@ export function reduceFlow(state: FlowState, action: FlowAction): FlowState {
       return { ...state, listVersion: state.listVersion + 1 };
     case "undone":
       return state.banner?.id === action.id ? { ...state, banner: null, listVersion: state.listVersion + 1 } : state;
+    case "welcome":
+      return state.modal.open || askOpen(state) ? { ...state, welcomePending: true } : openWelcome(state);
     case "shortcut":
       if (askOpen(state)) return state;
+      // The shortcut closes the welcome guide, then does its normal action.
+      if (state.modal.kind === "welcome") return openAdd({ ...state, modal: { ...CLOSED, session: state.modal.session } }, null, false, true);
       if (!state.modal.open) return openAdd(state, null, false, true);
       if (state.modal.kind === "add") return { ...state, recapture: state.recapture + 1 };
       return state; // Edit mode: nothing

@@ -29,7 +29,7 @@ use tauri::{Manager, Runtime};
 /// builds ignore it.
 pub const DEV_DATA_DIR_ENV: &str = "CARGO_LINE_DEV_DATA_DIR";
 
-/// Any build (Task 18, for measuring a release build): `CARGO_LINE_DATA_DIR` replaces the app
+/// Any build (for measuring a release build): `CARGO_LINE_DATA_DIR` replaces the app
 /// data folders the same way. It must be an **absolute** path; anything else is ignored. Nothing
 /// happens unless the variable is set explicitly.
 pub const DATA_DIR_ENV: &str = "CARGO_LINE_DATA_DIR";
@@ -74,7 +74,7 @@ pub fn local_data_dir<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<st
 /// Builds and runs the Tauri application.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Test overrides passed on by an in-app update's restart (`--env=NAME=VALUE`, Task 20).
+    // Test overrides passed on by an in-app update's restart (`--forward=<hex>`).
     update::install::apply_forwarded_env();
     trace::init();
     trace::mark("main entered");
@@ -163,6 +163,7 @@ pub fn run() {
             commands::open_link,
             commands::get_about_info,
             commands::trace_marks,
+            commands::mark_welcome_seen,
             commands::get_update_status,
             commands::check_for_updates,
             commands::set_update_automatic,
@@ -200,7 +201,7 @@ fn start_database<R: Runtime>(app: &tauri::AppHandle<R>) {
                 .and_then(|dir| {
                     trace::set_output_dir(&dir);
                     // A restore staged before the restart is swapped in before the database
-                    // is opened (Task 17). On failure the current database is kept.
+                    // is opened. On failure the current database is kept.
                     let db_file = dir.join(DATABASE_FILE_NAME);
                     let restored = backup::apply_pending(&dir, &db_file);
                     if let Some((ok, message)) = backup::restore_notice(&restored) {
@@ -221,7 +222,7 @@ fn start_database<R: Runtime>(app: &tauri::AppHandle<R>) {
                     eprintln!("[cargo-line] database ready at {}", db.path().display());
                     // The bundled ship catalog is upserted before commands can read it
                     // (idempotent; ships that left the list are hidden, never deleted). When
-                    // the stored version is the bundled one, it is only checked (Task 18).
+                    // the stored version is the bundled one, it is only checked.
                     match ships::bundled().and_then(|list| {
                         let mut conn = db.connection().map_err(|e| e.to_string())?;
                         ships::sync_catalog_if_changed(&mut conn, list, database::now_utc_ms())
@@ -246,7 +247,7 @@ fn start_database<R: Runtime>(app: &tauri::AppHandle<R>) {
             app.state::<DatabaseState>().set(outcome);
             trace::mark("database ready for commands");
             if let Ok(db) = app.state::<DatabaseState>().get() {
-                // After an in-app update: "Updated to version X" (Task 20).
+                // After an in-app update: "Updated to version X".
                 if let Ok(mut conn) = db.connection() {
                     update::note_finished_update(&app, &mut conn);
                 }

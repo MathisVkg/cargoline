@@ -1,4 +1,4 @@
-//! Where the app keeps its data, and which kind of copy is running (Task 19).
+//! Where the app keeps its data, and which kind of copy is running.
 //!
 //! - **Installed** (the NSIS installer): data in `%APPDATA%\io.github.mathisvkg.sccargoapp\`.
 //! - **Portable** (the zip): a `portable.txt` marker next to the exe; data in `<exe folder>\data\`,
@@ -24,7 +24,7 @@ pub const PORTABLE_WEBVIEW_DIR: &str = "webview";
 /// Read by WebView2 itself; set in portable mode before the window is created.
 pub const WEBVIEW2_USER_DATA_ENV: &str = "WEBVIEW2_USER_DATA_FOLDER";
 
-/// Which kind of copy is running. Task 20 uses it: only `installed` updates itself.
+/// Which kind of copy is running. The update check uses it: only `installed` updates itself.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AppMode {

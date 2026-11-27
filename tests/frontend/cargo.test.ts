@@ -1,4 +1,4 @@
-// Frontend unit tests for the Cargo page summary (Task 13).
+// Frontend unit tests for the Cargo page summary.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { formatAmount, requirementCargo, summarizeCargo, type OperationSummary } from "../../src/features/cargo/summary.ts";
@@ -144,7 +144,7 @@ test("active SCU equals the Contracts summary for the same data", () => {
   assert.equal(summarizeCargo(contracts).activeScuMilli, 42_750, "milli-SCU integers");
 });
 
-test("per-requirement export for the Task 13.1 visual", () => {
+test("per-requirement export for the isometric view", () => {
   const r1 = req("Aluminum", 12_500, [stop("A"), stop("B")], [stop("C")], 4_000);
   const r2 = req("Gold", 250, [stop("A")], [stop("D")]);
   const out = requirementCargo([contract(3, [r2]), contract(2, [r1]), contract(9, [req("X", 1, [stop("Z")], [stop("Y")])], "abandoned")]);

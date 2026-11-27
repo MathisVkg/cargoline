@@ -1,4 +1,4 @@
-// Frontend unit tests for Task 15: custom ships in the selector (groups, search, tag, dialog
+// Frontend unit tests: custom ships in the selector (groups, search, tag, dialog
 // validation, delete text, labels) and aUEC per hour in the History run headings.
 import { test } from "node:test";
 import assert from "node:assert/strict";

@@ -1,4 +1,4 @@
-//! Backup and restore of the whole database (Task 17).
+//! Backup and restore of the whole database.
 //!
 //! - **Export:** `VACUUM INTO` a temporary file next to the destination, then rename it into
 //!   place, then re-validate the written file (integrity, `application_id`, schema version). A
@@ -293,7 +293,7 @@ fn put_back(moved: &[(PathBuf, PathBuf)]) {
     }
 }
 
-/// The notice shown once after startup (Task 17).
+/// The notice shown once after startup.
 pub fn restore_notice(outcome: &StartupRestore) -> Option<(bool, String)> {
     match outcome {
         StartupRestore::None => None,

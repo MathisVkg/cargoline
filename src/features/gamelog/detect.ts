@@ -1,4 +1,4 @@
-// What Settings does with a Detect result (Task 10.1). Pure.
+// What Settings does with a Detect result. Pure.
 import type { DetectResult, FoundLog } from "./types.ts";
 
 export type DetectOutcome =

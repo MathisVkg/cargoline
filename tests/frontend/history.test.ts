@@ -1,4 +1,4 @@
-// Frontend unit tests for the History page (Task 12): headings, totals, row formatting, status
+// Frontend unit tests for the History page: headings, totals, row formatting, status
 // labels, Restore / Clear texts, the empty state and the shared live refresh.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -93,7 +93,7 @@ test("live refresh: a finalize, a restore or a clear bumps the shared list versi
   const s = [changed, changed, changed].reduce(reduceFlow, initialFlow);
   assert.equal(s.listVersion, 3, "History and Contracts both reload on every change");
   assert.equal(s.modal, initialFlow.modal, "nothing else changes");
-  // Completions from the game bump it too (Task 11).
+  // Completions from the game bump it too.
   const auto = reduceFlow(
     reduceFlow(initialFlow, {
       type: "gameLog",

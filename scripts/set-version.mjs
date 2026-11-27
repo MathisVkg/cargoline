@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Sets the app version everywhere it is stored (Task 19). The source of truth is package.json;
+// Sets the app version everywhere it is stored. The source of truth is package.json;
 // tauri.conf.json reads it ("version": "../package.json"); Cargo needs its own copy.
 //
 //   node scripts/set-version.mjs 1.0.0-beta.1

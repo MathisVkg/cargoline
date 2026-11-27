@@ -123,7 +123,7 @@ test("clock formatting is local HH:MM", () => {
   assert.equal(formatClock(new Date(2026, 0, 2, 3, 4).getTime()), "03:04");
 });
 
-/* ---------- OCR status (Task 08) ---------- */
+/* ---------- OCR status ---------- */
 
 const ocrResult = (screen: OcrResult["screen"], totalMs = 940): OcrResult => ({
   width: 3840,

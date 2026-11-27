@@ -36,6 +36,8 @@ import {
   type LinkKey,
 } from "../features/data/model";
 import { getSettings, updateCaptureSettings } from "../features/capture/api";
+import { requestWelcome } from "../features/welcome/api";
+import { SHOW_WELCOME_LABEL } from "../features/welcome/model";
 import {
   cancelUpdateDownload,
   checkForUpdates,
@@ -599,7 +601,7 @@ function CompleteModeChoice({ mode, onChange }: { mode: CompleteFromGameMode; on
   );
 }
 
-/** Settings → Updates (Task 20): version and mode, the automatic check, Check now, the offer. */
+/** Settings → Updates: version and mode, the automatic check, Check now, the offer. */
 function UpdatesSection() {
   const [status, setStatus] = useUpdateStatus();
   const [error, setError] = useState<string | null>(null);
@@ -709,7 +711,7 @@ function UpdatesSection() {
 
 type DataNote = { tone: "success" | "error"; text: string };
 
-/** Data folder, Export backup, Restore backup (Task 17). */
+/** Data folder, Export backup, Restore backup. */
 function DataSection() {
   const [info, setInfo] = useState<DataInfo | null>(null);
   const [note, setNote] = useState<DataNote | null>(null);
@@ -854,6 +856,9 @@ function AboutSection() {
         <LinkButton onClick={link("wikiApi")}>api.star-citizen.wiki</LinkButton>
       </div>
       <p className="px-4 py-3 text-xs break-words text-dim">{UNOFFICIAL}</p>
+      <Row label="Welcome guide" hint="The short guide shown on first launch.">
+        <SmallButton onClick={requestWelcome}>{SHOW_WELCOME_LABEL}</SmallButton>
+      </Row>
       <Row label="Source code">
         <LinkButton onClick={link("repository")}>{REPOSITORY_LABEL}</LinkButton>
       </Row>

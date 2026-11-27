@@ -1,4 +1,4 @@
-//! Checking a downloaded installer (Task 20): its SHA-256 must match its line in
+//! Checking a downloaded installer: its SHA-256 must match its line in
 //! `SHA256SUMS.txt` and its size the size GitHub lists. This catches a damaged or incomplete
 //! download. It does not protect against a compromised GitHub account (code signing would).
 

@@ -1,4 +1,4 @@
--- 0004: details of a stored screenshot (Task 07).
+-- 0004: details of a stored screenshot.
 -- capture_method (existing) stays the *trigger*: 'manual' (user opened Add Contract
 -- or pressed Capture) or 'auto_capture' (future Game.log trigger).
 -- New columns are nullable so rows written before this version stay valid.

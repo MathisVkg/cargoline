@@ -40,13 +40,13 @@ logs/
 .claude/
 .agent-local/
 CLAUDE.local.md
-TASK_*.md
+TASK*.md
 FOUNDATION.md
 RULES.md
 *.report.md
 reports/
 fixtures/
-# Automated tests are tracked (Task 14). Their local fixtures (screenshots, ground truth, a real
+# Automated tests are tracked. Their local fixtures (screenshots, ground truth, a real
 # Game.log) stay in .agent-local/ and the tests that need them skip when they are missing.
 test-data/
 test-output/
@@ -78,3 +78,6 @@ Desktop.ini
 
 # Release build output (scripts/build-release.ps1)
 /release-out/
+
+# Maintainer-only files moved out of the public repository (developer docs, generators, tools)
+/.local/

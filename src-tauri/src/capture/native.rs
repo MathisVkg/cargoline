@@ -1,4 +1,4 @@
-//! Windows-only capture (measured in the Task 06 spike):
+//! Windows-only capture (measured in an early capture spike):
 //! - Windows.Graphics.Capture of the Star Citizen window (works while it is covered or
 //!   unfocused), with the yellow border and the cursor off;
 //! - `PrintWindow(PW_RENDERFULLCONTENT)` only if WGC fails;

@@ -1,5 +1,5 @@
 //! Every Game.log line format Cargo Line understands, in one place, so a game patch only needs
-//! changes here. Measured on a 4.10.200 log (Task 06 §B5, Task 10). Only the fields below are
+//! changes here. Measured on a 4.10.200 log. Only the fields below are
 //! extracted; the rest of each line (handle, account ids, IP-like values) is never kept.
 //!
 //! ```text
@@ -9,14 +9,14 @@
 //! <ts> [Notice] <MissionEnded> Received MissionEnded push message for: mission_id <uuid> - mission_state MISSION_STATE_COMPLETED …
 //! <ts> [Notice] <EndMission> Ending mission for player. MissionId[<uuid>] Player[<name>] PlayerId[<n>] CompletionType[Abandon] Reason[Player left] …
 //! ```
-//! `EndMission` (Task 16) is the only end line for an abandon (no `MissionEnded`). For a completion
+//! `EndMission` is the only end line for an abandon (no `MissionEnded`). For a completion
 //! it follows `MissionEnded` on the next line (`CompletionType[Complete]`); the tracker keeps the
 //! first end per MissionId, so a mission acts once. Only the MissionId, the completion type and the
 //! timestamp are read: the player name and id on that line are never kept or logged.
 //! The accepted notification is echoed on lines without a MissionId: only the line carrying
 //! one counts.
 
-/// Contract template prefixes treated as hauling (`contract [<prefix>_…]`). The Task 06 log only
+/// Contract template prefixes treated as hauling (`contract [<prefix>_…]`). The measured log only
 /// contains `HaulCargo` (generator `Covalex_Hauling`); salvage uses `Adaigo` and is ignored.
 pub const HAULING_TEMPLATE_PREFIXES: &[&str] = &["HaulCargo"];
 pub const STATE_COMPLETED: &str = "MISSION_STATE_COMPLETED";

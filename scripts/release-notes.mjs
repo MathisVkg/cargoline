@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Extracts the CHANGELOG.md section of one version, for the GitHub Release notes (Task 19).
+// Extracts the CHANGELOG.md section of one version, for the GitHub Release notes.
 //
 //   node scripts/release-notes.mjs <version> <output file>
 //

@@ -1,4 +1,4 @@
-//! Task 11 tests: the bundled ship catalog (validity, storage sync, favourites, selection, stale
+//! Tests: the bundled ship catalog (validity, storage sync, favourites, selection, stale
 //! selection), the "Complete contracts finished in game" settings and backend safeguards, and
 //! `reactivate_contracts` (Undo). Temporary databases only; no desktop, no real Game.log.
 
@@ -49,7 +49,7 @@ fn bundled_catalog_is_valid() {
     );
     assert_eq!(c2.manufacturer_code, "CRUS");
     assert_eq!(get("RSI_Galaxy_TEMP_Cargo").cargo_scu, 720);
-    // Task 14: the largest container is derived from grid sizes. Placeholder grids give null,
+    // The largest container is derived from grid sizes. Placeholder grids give null,
     // never a placeholder 1.
     assert_eq!(get("RSI_Hermes").max_container_scu, None);
     assert_eq!(get("DRAK_Ironclad").max_container_scu, None);
@@ -145,7 +145,7 @@ fn sync_is_idempotent_and_never_deletes() {
     );
     assert_eq!(c2.manufacturer_code, "CRUS");
     // A ship without a known largest container (null in ships.json) stores, lists, selects and
-    // serialises as null (Task 14).
+    // serialises as null.
     let hermes = listed.iter().find(|s| s.id == "RSI_Hermes").unwrap();
     assert_eq!((hermes.cargo_scu, hermes.max_container_scu), (288, None));
     let json = serde_json::to_value(hermes).unwrap();

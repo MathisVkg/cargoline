@@ -275,7 +275,7 @@ test("Add Contract draft still validates and converts to the IPC payload", () =>
   assert.equal(formatScu(9_000), "9");
 });
 
-/* ---------- Task 04.1: manifest aggregation ---------- */
+/* ---------- manifest aggregation ---------- */
 
 import { aggregateRows, isCombinedKey } from "../../src/features/contracts/grouping.ts";
 import {
@@ -363,7 +363,7 @@ test("aggregateRows keeps single rows unchanged and is order-preserving", () => 
   assert.deepEqual(entries[0].parts, [rows[0]]);
 });
 
-/* ---------- Task 04.1 / 04.2: picker suggestions and search ---------- */
+/* ---------- picker suggestions and search ---------- */
 
 const sugg = (names: string[]) => fromNames(names);
 const ranked = (names: string[], q: string) => rankSuggestions(sugg(names), q).map((s) => s.name);
@@ -478,7 +478,7 @@ test("form validation treats whitespace variants of one location as duplicates",
   assert.deepEqual(validateDraft(draft).map((i) => i.path), ["requirements.0.pickups.1.locationName"]);
 });
 
-/* ---------- Task 04.3: summary row, empty-query ordering, sorting ---------- */
+/* ---------- summary row, empty-query ordering, sorting ---------- */
 
 import { capacityState, formatPercent, summarizeContracts, summaryForList } from "../../src/features/contracts/summary.ts";
 import { compareNames, sortKey } from "../../src/features/contracts/catalogSearch.ts";
@@ -574,7 +574,7 @@ test("alphabetical sorting ignores leading punctuation and quotes", () => {
   assert.deepEqual(ranked(['"The Orphanage"', "Area18", "Zephyr"], ""), ["Area18", '"The Orphanage"', "Zephyr"]);
 });
 
-/* ---------- Task 05: complete / abandon ---------- */
+/* ---------- complete / abandon ---------- */
 
 import {
   bulkConfirmation,
@@ -650,7 +650,7 @@ test("summary recalculates after contracts are removed", () => {
   assert.deepEqual(summaryForList({ status: "ready", contracts: [] }), { activeCount: 0, totalScuMilli: 0 });
 });
 
-/* ---------- Task 05.1: edit contracts and reminder ticks ---------- */
+/* ---------- edit contracts and reminder ticks ---------- */
 
 import { draftFromContract, isDraftDirty, scuToInput } from "../../src/features/contracts/draft.ts";
 import { parseRewardAuec, parseScuMilli } from "../../src/features/contracts/scu.ts";
@@ -769,7 +769,7 @@ test("ticks never change the summary or totals", () => {
   );
 });
 
-/* ---------- Task 06 Part A: badge and checkbox are the same control ---------- */
+/* ---------- badge and checkbox are the same control ---------- */
 
 import { reminderBadgeText, reminderIntent, reminderLabel } from "../../src/features/contracts/reminders.ts";
 

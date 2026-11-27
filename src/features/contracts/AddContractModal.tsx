@@ -99,7 +99,7 @@ export function AddContractModal({
   const [referenceCommodities, setReferenceCommodities] = useState<ReferenceCommodity[]>([]);
   const [userLocations, setUserLocations] = useState<LocationEntry[]>([]);
   const [usedCommodities, setUsedCommodities] = useState<string[]>([]);
-  // Filling from the screenshot (Task 09).
+  // Filling from the screenshot.
   const [flags, setFlags] = useState<FieldFlags>(NO_FLAGS);
   /** The user typed since the form was last filled (or since it opened). */
   const [userEdited, setUserEdited] = useState(false);

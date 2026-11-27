@@ -1,4 +1,4 @@
-//! Startup ordering (Task 18): background work that is not needed for the first screen waits
+//! Startup ordering: background work that is not needed for the first screen waits
 //! until the first contracts list has been served, so it never competes with it for the
 //! database connection. It still runs at every startup: the wait has a time limit.
 

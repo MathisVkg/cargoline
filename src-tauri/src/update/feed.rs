@@ -1,4 +1,4 @@
-//! The GitHub releases list and which release to offer (pure functions, Task 20).
+//! The GitHub releases list and which release to offer (pure functions).
 //!
 //! - Drafts are ignored.
 //! - A pre-release build (`1.0.0-beta.1`) is offered every newer release, pre-release or not; a
@@ -17,7 +17,7 @@ pub const MAX_FEED_BYTES: usize = 2 * 1024 * 1024;
 pub const MAX_NOTES_CHARS: usize = 4_000;
 pub const SUMS_ASSET: &str = "SHA256SUMS.txt";
 
-/// The setup file name for a version (Task 19's release layout).
+/// The setup file name for a version (the release layout).
 pub fn setup_asset_name(version: &Version) -> String {
     format!("Cargo-Line_{version}_x64-setup.exe")
 }

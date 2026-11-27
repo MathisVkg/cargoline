@@ -1,13 +1,13 @@
 //! Text recognition of a stored capture with the bundled Tesseract engine.
 //!
 //! Recognition only: this module returns regions, lines, words and confidences. Turning text
-//! into contract fields is a separate concern (Task 09), so a parser change never touches the
+//! into contract fields is a separate concern, so a parser change never touches the
 //! engine.
 //!
-//! Pipeline (configuration chosen by the Task 08 accuracy gate, `tessdata_fast`):
+//! Pipeline (configuration chosen by the OCR accuracy gate, `tessdata_fast`):
 //! 1. Load the PNG.
 //! 2. Anchor pass, `--psm 11` (sparse text): `PRIMARY OBJECTIVES`, `Reward`, the reward card label.
-//!    On a 50 % copy from 1440 px of height (4K: about 1900 × 1080); full size below (Task 16: a
+//!    On a 50 % copy from 1440 px of height (4K: about 1900 × 1080); full size below (a
 //!    halved 1080p frame is 960 × 540, too small to read the reward card).
 //! 3. Regions from the anchors (fixed fractions when an anchor is missing).
 //! 4. Title and reward raw, objectives grayscale ×2, all `--psm 6`, in parallel.

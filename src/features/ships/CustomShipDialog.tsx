@@ -6,7 +6,7 @@ import { addCustomShip, editCustomShip, useShips } from "./store";
 import type { ShipEntry } from "./types";
 
 /**
- * Add or edit a custom ship (Task 15): Name and Cargo (SCU), Cancel and Save. Mount to open,
+ * Add or edit a custom ship: Name and Cargo (SCU), Cancel and Save. Mount to open,
  * unmount to close. Validation messages are inline; the backend checks the same rules and its
  * messages are shown in the same places. After adding, the new ship is selected.
  */

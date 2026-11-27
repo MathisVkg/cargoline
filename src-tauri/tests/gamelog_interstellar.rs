@@ -1,4 +1,4 @@
-//! Task 16 tests: the `EndMission` pattern (abandon), the per-MissionId dedupe with `MissionEnded`,
+//! Tests: the `EndMission` pattern (abandon), the per-MissionId dedupe with `MissionEnded`,
 //! interstellar objectives naming a system, and the hauling template filter for
 //! `HaulCargo_MultiToSingle_Interstellar_*`. Synthetic lines only: fake MissionIds, a fake player
 //! name and id. Temporary databases only.
@@ -108,7 +108,7 @@ fn completion_types() {
 
 #[test]
 fn one_end_per_mission_when_both_lines_arrive() {
-    // Completion: MissionEnded first, EndMission (Complete) on the next line (seen in the Task 06
+    // Completion: MissionEnded first, EndMission (Complete) on the next line (seen in a real
     // log for all 4 completions). One event, from the first line.
     let events = feed_all(&[
         mission_ended(M1, STATE_COMPLETED),

@@ -1,4 +1,4 @@
-//! Task 12 tests: History statistics and grouping, Restore to active, Clear History, run
+//! Tests: History statistics and grouping, Restore to active, Clear History, run
 //! numbers never reused (migration 0006), and a ~500-contract timing. Temporary databases only.
 
 use std::path::Path;

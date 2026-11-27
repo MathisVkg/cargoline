@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, CircleCheck, X } from "lucide-react";
 import { takeStartupNotice, type StartupNotice } from "./api";
 
-/** The one-time notice after a restore at startup (Task 17): success or "nothing changed". */
+/** The one-time notice after a restore at startup: success or "nothing changed". */
 export function StartupNoticeBanner() {
   const [notice, setNotice] = useState<StartupNotice | null>(null);
   useEffect(() => {

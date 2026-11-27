@@ -1,4 +1,4 @@
-//! Task 15 tests: custom ships (validation, catalog sync never touches them, favourites,
+//! Tests: custom ships (validation, catalog sync never touches them, favourites,
 //! selection, deletion) and aUEC per hour per run (interval union, rounding, null cases).
 //! Temporary databases and synthetic data only.
 

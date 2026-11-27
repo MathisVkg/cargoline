@@ -1,5 +1,5 @@
 //! Minimal image handling for OCR (no extra crates): PNG decoding, crop, grayscale, 2× box
-//! downscale, 2× Catmull-Rom upscale (the filter measured in Task 08), and PNM output, which
+//! downscale, 2× Catmull-Rom upscale (the filter measured on the fixtures), and PNM output, which
 //! Tesseract (Leptonica) reads directly without compression cost.
 
 use std::io::{BufRead, Seek, Write};

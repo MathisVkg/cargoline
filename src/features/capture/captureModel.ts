@@ -32,7 +32,7 @@ export interface CaptureModel {
 export interface OcrView {
   status: "idle" | "reading" | "done" | "error";
   result: OcrResult | null;
-  /** The contract read from `result` (Task 09). */
+  /** The contract read from `result`. */
   parsed: ParsedContract | null;
   error: { reason: OcrFailure | "other"; message: string } | null;
 }
@@ -43,7 +43,7 @@ export type CaptureEvent =
   | { type: "configured"; auto: boolean; delayMs: number }
   | { type: "tick"; remainingMs: number }
   | { type: "start" }
-  /** The automatic retry (Task 10.1) started / finished; `better` replaces the reading if it won. */
+  /** The automatic retry started / finished; `better` replaces the reading if it won. */
   | { type: "retryStart" }
   | { type: "retryFinished"; better?: { capture: CaptureInfo; result: OcrResult; parsed: ParsedContract } }
   | { type: "succeeded"; capture: CaptureInfo }

@@ -20,6 +20,8 @@ export interface AppSettings {
   update_last_check_ms: number | null;
   update_skipped_version: string | null;
   update_installing_version: string | null;
+  /** The welcome guide was shown in this data folder. */
+  welcome_seen: boolean;
   contract_grouping: string;
 }
 
@@ -41,7 +43,7 @@ export interface CaptureInfo {
   height: number | null;
 }
 
-/* ---------- OCR (recognition only; Task 09 turns it into form fields) ---------- */
+/* ---------- OCR (recognition only) ---------- */
 
 export interface OcrBox {
   x: number;
@@ -87,7 +89,7 @@ export interface OcrResult {
   timings: { loadMs: number; anchorMs: number; regionsMs: number; totalMs: number };
 }
 
-/* ---------- Parsed contract (Task 09; the backend parser's output) ---------- */
+/* ---------- Parsed contract (the backend parser's output) ---------- */
 
 /** ok = read reliably; check = filled, to verify; missing = left empty. */
 export type ParseFlag = "ok" | "check" | "missing";

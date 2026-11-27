@@ -3,7 +3,7 @@ import { ShipSelector } from "./ShipSelector";
 import { useUpdateStatus } from "../features/update/api";
 import { UPDATE_MARKER_TEXT, markerVisible } from "../features/update/model";
 
-/** A quiet "Update available" line (Task 20): opens Settings → Updates. Never a pop-up. */
+/** A quiet "Update available" line: opens Settings → Updates. Never a pop-up. */
 function UpdateMarker({ onOpen }: { onOpen: () => void }) {
   const [status] = useUpdateStatus(false);
   if (!markerVisible(status)) return null;

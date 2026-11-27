@@ -10,7 +10,7 @@ pub enum CaptureSource {
     FullDisplay,
 }
 
-/// What to do when Game.log reports a contract completed (Task 11 Part B).
+/// What to do when Game.log reports a contract completed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum CompleteFromGameMode {
@@ -65,7 +65,7 @@ pub struct AppSettings {
     pub complete_from_game_mode: CompleteFromGameMode,
     /// Informational ship selection (catalog id). Never linked to contracts or runs.
     pub selected_ship_id: Option<String>,
-    /// Check GitHub for a newer version about 10 s after start, at most once a day (Task 20).
+    /// Check GitHub for a newer version about 10 s after start, at most once a day.
     /// On by default. (Replaces the unused opt-in `automatic_update_checks` key of earlier
     /// builds, which is ignored if stored.)
     pub check_updates_automatically: bool,
@@ -75,6 +75,9 @@ pub struct AppSettings {
     pub update_skipped_version: Option<String>,
     /// Set just before the installer runs; the next start turns it into "Updated to version X".
     pub update_installing_version: Option<String>,
+    /// The welcome guide was shown in this data folder (once, on first launch). A database that
+    /// predates the key gets `false`, so existing users see it once after updating.
+    pub welcome_seen: bool,
     pub contract_grouping: ContractGrouping,
 }
 
@@ -95,6 +98,7 @@ impl Default for AppSettings {
             update_last_check_ms: None,
             update_skipped_version: None,
             update_installing_version: None,
+            welcome_seen: false,
             contract_grouping: ContractGrouping::ByLocation,
         }
     }
